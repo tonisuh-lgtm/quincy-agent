@@ -234,6 +234,11 @@ app.get('/receipt/:id', (req, res) => {
   }
 });
 
+app.delete('/api/utilities/:id', auth, (req, res) => {
+  db.prepare('DELETE FROM utility_bills WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 app.post('/api/utilities/:id/notify', auth, async (req, res) => {
   const bill = db.prepare('SELECT * FROM utility_bills WHERE id = ?').get(req.params.id);
   if (!bill) return res.status(404).json({ error: 'Bill not found' });
