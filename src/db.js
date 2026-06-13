@@ -1,12 +1,17 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../data/property.db');
-
 const fs = require('fs');
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
+// Use /tmp for Railway (ephemeral but works for runtime)
+// For persistence, set DB_PATH env variable to a mounted volume path
+const DB_PATH = process.env.DB_PATH || '/tmp/property.db';
+
+const dataDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+console.log('Opening database at:', DB_PATH);
 const db = new Database(DB_PATH);
 
 db.exec(`
@@ -63,6 +68,7 @@ db.exec(`
     period TEXT,
     notes TEXT,
     notified INTEGER DEFAULT 0,
+    receipt_url TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
 
@@ -113,6 +119,14 @@ db.exec(`
     FOREIGN KEY (job_id) REFERENCES scheduling_jobs(id)
   );
 
+  CREATE TABLE IF NOT EXISTS receipt_store (
+    id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    name TEXT,
+    mime_type TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS agent_config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -143,7 +157,7 @@ const seedConfig = () => {
   const defaults = [
     ['agent_persona', 'You are a professional property management agent for 9 Quincy Pl NE #2, Washington DC 20002, managed by the owner Dongyeon Suh. You communicate on behalf of the owner professionally, warmly, and efficiently. You never reveal personal details about the owner or other tenants. You never promise resolutions without owner approval. You gather information systematically to help the owner make decisions.'],
     ['urgency_rules', 'EMERGENCY (respond ASAP, escalate immediately): water leak, flooding, gas smell, fire, no heat in winter below 40F, electrical sparks, security breach, injury, break-in. URGENT (1-2 business days): broken appliance, no hot water, AC broken in summer above 85F, lock issue, pest infestation, significant damage, mold. ROUTINE (5 business days): cosmetic issues, general questions, non-critical maintenance, noise complaints, general inquiries, minor repairs.'],
-    ['gather_maintenance', 'Ask these questions ONE AT A TIME, not all at once: 1) exact location in unit, 2) when it started, 3) is it getting worse?, 4) any photos you can send?, 5) has this happened before?'],
+    ['gather_maintenance', 'Ask these questions ONE AT A TIME: 1) exact location in unit, 2) when it started, 3) is it getting worse?, 4) any photos you can send?, 5) has this happened before?'],
     ['gather_complaint', 'Ask these questions ONE AT A TIME: 1) nature of the complaint in more detail, 2) when did it start?, 3) how often is it happening?, 4) is anyone else involved?, 5) how is it affecting your use of the unit?'],
     ['gather_payment', 'Ask these questions ONE AT A TIME: 1) which month is in question?, 2) how much do you believe you paid?, 3) what date and method did you use?, 4) do you have a confirmation number or screenshot?'],
     ['gather_scheduling', 'Ask: 1) What are 2-3 windows of availability over the next 1-2 weeks? 2) Is there any time that absolutely does not work?'],
@@ -157,4 +171,5 @@ const seedConfig = () => {
 seedTenants();
 seedConfig();
 
+console.log('Database ready');
 module.exports = db;

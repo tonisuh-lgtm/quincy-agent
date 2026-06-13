@@ -193,18 +193,45 @@ app.delete('/api/payments/:id', auth, (req, res) => {
 
 // Utilities
 app.get('/api/utilities', auth, (req, res) => {
-  res.json(db.prepare('SELECT * FROM utility_bills ORDER BY timestamp DESC').all());
+  res.json(db.prepare('SELECT id, type, total, tenant_share, period, notes, notified, receipt_url, timestamp FROM utility_bills ORDER BY timestamp DESC').all());
 });
 
 app.post('/api/utilities', auth, async (req, res) => {
-  const { type, total, period, notes } = req.body;
+  const { type, total, period, notes, receipt } = req.body;
   const rules = { water: 5, electricity: 3, gas: 3, internet: 3 };
   const divisor = rules[type] || 3;
   const share = parseFloat((parseFloat(total) / divisor).toFixed(2));
 
-  const result = db.prepare(`INSERT INTO utility_bills (type, total, tenant_share, period, notes) VALUES (?, ?, ?, ?, ?)`).run(type, parseFloat(total), share, period || '', notes || '');
+  let receipt_url = null;
+  if (receipt && receipt.data) {
+    // Store receipt as base64 and create a view URL
+    const receiptId = Date.now();
+    db.prepare('INSERT OR IGNORE INTO receipt_store (id, data, name, mime_type) VALUES (?, ?, ?, ?)').run(
+      receiptId, receipt.data, receipt.name || 'receipt', receipt.type || 'application/octet-stream'
+    );
+    receipt_url = `/receipt/${receiptId}`;
+  }
+
+  const result = db.prepare(`INSERT INTO utility_bills (type, total, tenant_share, period, notes, receipt_url) VALUES (?, ?, ?, ?, ?, ?)`).run(
+    type, parseFloat(total), share, period || '', notes || '', receipt_url
+  );
 
   res.json({ ok: true, id: result.lastInsertRowid, share, divisor });
+});
+
+// Serve receipt
+app.get('/receipt/:id', (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM receipt_store WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).send('Not found');
+    const base64Data = row.data.split(',')[1] || row.data;
+    const buffer = Buffer.from(base64Data, 'base64');
+    res.set('Content-Type', row.mime_type || 'application/octet-stream');
+    res.set('Content-Disposition', `inline; filename="${row.name}"`);
+    res.send(buffer);
+  } catch (e) {
+    res.status(404).send('Not found');
+  }
 });
 
 app.post('/api/utilities/:id/notify', auth, async (req, res) => {
@@ -212,7 +239,8 @@ app.post('/api/utilities/:id/notify', auth, async (req, res) => {
   if (!bill) return res.status(404).json({ error: 'Bill not found' });
 
   const typeLabels = { water: 'Water (÷5)', electricity: 'Electricity (÷3)', gas: 'Gas (÷3)', internet: 'Internet (÷3)' };
-  const msg = `Hi, ${typeLabels[bill.type] || bill.type} bill for ${bill.period || 'the current period'}: your share is $${bill.tenant_share.toFixed(2)} (total bill: $${bill.total.toFixed(2)}). Please send payment via your usual method by the 5th. Thank you! — 9 Quincy Management`;
+  const receiptPart = bill.receipt_url ? ` Receipt: https://${req.get('host')}${bill.receipt_url}` : '';
+  const msg = `Hi, ${typeLabels[bill.type] || bill.type} bill for ${bill.period || 'current period'}: your share is $${bill.tenant_share.toFixed(2)} (total: $${bill.total.toFixed(2)}).${receiptPart} Please pay by the 5th. — 9 Quincy Management`;
 
   const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
   for (const t of tenants) {
@@ -221,7 +249,30 @@ app.post('/api/utilities/:id/notify', auth, async (req, res) => {
   }
 
   db.prepare('UPDATE utility_bills SET notified = 1 WHERE id = ?').run(req.params.id);
-  res.json({ ok: true, message: msg });
+  res.json({ ok: true });
+});
+
+// Notify all bills for a period at once (combined summary)
+app.post('/api/utilities/notify-all', auth, async (req, res) => {
+  const { period } = req.query;
+  const bills = db.prepare('SELECT * FROM utility_bills WHERE period = ?').all(period);
+  if (!bills.length) return res.status(404).json({ error: 'No bills found for period' });
+
+  const typeLabels = { water: 'Water (÷5)', electricity: 'Electricity (÷3)', gas: 'Gas (÷3)', internet: 'Internet (÷3)' };
+  const totalShare = bills.reduce((s, b) => s + b.tenant_share, 0);
+  const breakdown = bills.map(b => `${typeLabels[b.type]||b.type}: $${b.tenant_share.toFixed(2)}`).join(', ');
+  const receiptLinks = bills.filter(b => b.receipt_url).map(b => `https://${req.get('host')}${b.receipt_url}`).join(' ');
+
+  const msg = `Hi, utilities for ${period} — ${breakdown}. Total per tenant: $${totalShare.toFixed(2)}.${receiptLinks ? ' Receipts: ' + receiptLinks : ''} Please pay by the 5th. — 9 Quincy Management`;
+
+  const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
+  for (const t of tenants) {
+    await sendSMS(t.phone, msg);
+    db.prepare(`INSERT INTO conversations (tenant_id, direction, content, category, agent_classified) VALUES (?, 'outbound', ?, 'payment', 1)`).run(t.id, msg);
+  }
+
+  db.prepare('UPDATE utility_bills SET notified = 1 WHERE period = ?').run(period);
+  res.json({ ok: true });
 });
 
 // ─── SCHEDULING ───────────────────────────────────────────────
