@@ -169,18 +169,30 @@
             <option value="internet">Internet (÷3)</option>
           </select>
         </div>
-        <div><label class="field-label">Period</label><input id="uf-period" placeholder="e.g. May 2026" /></div>
+        <div><label class="field-label">Period (e.g. June 2026)</label><input id="uf-period" placeholder="e.g. June 2026" /></div>
         <div><label class="field-label">Total bill ($)</label><input type="number" id="uf-amount" placeholder="0.00" /></div>
         <div><label class="field-label">Notes</label><input id="uf-notes" placeholder="Optional" /></div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="field-label">Receipt (optional — PDF or image)</label>
+        <input type="file" id="uf-receipt" accept="image/*,.pdf" style="font-size:12px;padding:6px;" />
       </div>
       <div id="util-calc" style="display:none;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;"></div>
       <div class="row" style="gap:8px;">
         <button onclick="calcUtil()">Calculate split</button>
-        <button id="util-save-btn" style="display:none;" class="btn-primary" onclick="saveUtil()">Save & notify tenants</button>
+        <button id="util-save-btn" style="display:none;" class="btn-primary" onclick="saveUtil()">Save bill</button>
         <button onclick="toggleUtilForm()">Cancel</button>
       </div>
     </div>
-    <div id="util-list"></div>
+
+    <!-- Monthly summary -->
+    <div id="util-monthly-summary"></div>
+
+    <!-- All bills -->
+    <div style="margin-top:24px;">
+      <div class="section-title">All bills</div>
+      <div id="util-list"></div>
+    </div>
   </div>
 
   <!-- SCHEDULING -->
@@ -519,6 +531,19 @@ async function loadPayments() {
   }).join('');
 }
 
+async function notifyUtil(id) {
+  if (!confirm('Send utility bill notification to both tenants now?')) return;
+  await api(`/api/utilities/${id}/notify`, {method:'POST'});
+  alert('✅ Tenants notified!');
+  loadUtilities();
+}
+
+async function notifyAllUtil(period) {
+  if (!confirm(`Send combined utility summary for ${period} to both tenants?`)) return;
+  const res = await api(`/api/utilities/notify-all?period=${encodeURIComponent(period)}`, {method:'POST'});
+  if (res.ok) { alert('✅ Combined utility summary sent to both tenants!'); loadUtilities(); }
+}
+
 async function deletePayment(id) {
   if (!confirm('Delete this payment?')) return;
   await api(`/api/payments/${id}`, {method:'DELETE'});
@@ -551,10 +576,19 @@ function calcUtil() {
 
 async function saveUtil() {
   if (!utilCalcResult) return;
-  const result = await api('/api/utilities', {method:'POST', body:JSON.stringify(utilCalcResult)});
+  const fileInput = document.getElementById('uf-receipt');
+  let receiptData = null;
+  if (fileInput && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    receiptData = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve({ data: e.target.result, name: file.name, type: file.type });
+      reader.readAsDataURL(file);
+    });
+  }
+  const result = await api('/api/utilities', {method:'POST', body:JSON.stringify({...utilCalcResult, receipt: receiptData})});
   if (result.ok) {
-    await api(`/api/utilities/${result.id}/notify`, {method:'POST'});
-    alert('Bill saved and tenants notified via SMS!');
+    alert('Bill saved. Use "Send to tenants" when all bills for the month are ready.');
     toggleUtilForm();
     loadUtilities();
   }
@@ -562,20 +596,64 @@ async function saveUtil() {
 
 async function loadUtilities() {
   const bills = await api('/api/utilities');
-  const el = document.getElementById('util-list');
-  if (!bills.length) { el.innerHTML='<div class="empty">No utility bills logged yet.</div>'; return; }
   const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
-  el.innerHTML = bills.map(b=>`
-  <div class="card">
+
+  // Group by period
+  const byPeriod = {};
+  bills.forEach(b => {
+    const p = b.period || 'Unknown period';
+    if (!byPeriod[p]) byPeriod[p] = [];
+    byPeriod[p].push(b);
+  });
+
+  // Monthly summary
+  const summaryEl = document.getElementById('util-monthly-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = Object.entries(byPeriod).sort((a,b)=>b[0].localeCompare(a[0])).map(([period, pbills]) => {
+      const totalShare = pbills.reduce((s,b) => s + b.tenant_share, 0);
+      const allNotified = pbills.every(b => b.notified);
+      return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="row between" style="margin-bottom:12px;">
+          <span style="font-weight:500;">${period}</span>
+          <span style="color:var(--gold);font-weight:500;">Each tenant: $${totalShare.toFixed(2)}</span>
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          ${pbills.map(b=>`
+          <tr style="border-bottom:0.5px solid var(--border);">
+            <td style="padding:6px 0;color:var(--text2);">${labels[b.type]||b.type}</td>
+            <td style="padding:6px 0;text-align:center;color:var(--text2);">$${b.total.toFixed(2)} total</td>
+            <td style="padding:6px 0;text-align:right;color:var(--gold);">$${b.tenant_share.toFixed(2)} each</td>
+            <td style="padding:6px 0;text-align:right;">${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:11px;">📄</a>`:''}</td>
+          </tr>`).join('')}
+          <tr>
+            <td colspan="2" style="padding:8px 0;font-weight:500;">Total per tenant</td>
+            <td style="padding:8px 0;text-align:right;font-weight:500;color:var(--gold);">$${totalShare.toFixed(2)}</td>
+            <td></td>
+          </tr>
+        </table>
+        ${!allNotified
+          ? `<button onclick="notifyAllUtil('${period}')" class="btn-primary" style="margin-top:12px;font-size:12px;width:100%;">Send combined notice to both tenants</button>`
+          : `<div style="color:var(--green);font-size:12px;margin-top:10px;">✓ Tenants notified</div>`}
+      </div>`;
+    }).join('');
+  }
+
+  // All bills
+  const el = document.getElementById('util-list');
+  if (!bills.length) { if(el) el.innerHTML='<div class="empty">No utility bills logged yet.</div>'; if(summaryEl) summaryEl.innerHTML=''; return; }
+  if (el) el.innerHTML = bills.map(b=>`
+  <div class="card" style="margin-bottom:10px;">
     <div class="row between">
       <div>
         <div style="font-weight:500;">${labels[b.type]||b.type} · ${b.period||'—'}</div>
         <div class="muted">Total: $${b.total.toFixed(2)} · Per tenant: <strong style="color:var(--gold);">$${b.tenant_share.toFixed(2)}</strong></div>
         ${b.notes?`<div class="muted">${b.notes}</div>`:''}
+        ${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:12px;">📄 View receipt</a>`:''}
       </div>
       <div style="text-align:right;">
         <div class="muted">${fmtTime(b.timestamp)}</div>
-        <div style="color:${b.notified?'var(--green)':'var(--text3)'};font-size:12px;">${b.notified?'✓ notified':'not sent'}</div>
+        <div style="font-size:12px;margin-top:4px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:11px;">Send to tenants</button>`}</div>
       </div>
     </div>
   </div>`).join('');

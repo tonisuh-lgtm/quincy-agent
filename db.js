@@ -68,6 +68,7 @@ db.exec(`
     period TEXT,
     notes TEXT,
     notified INTEGER DEFAULT 0,
+    receipt_url TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
 
@@ -116,6 +117,14 @@ db.exec(`
     status TEXT DEFAULT 'pending',
     updated_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (job_id) REFERENCES scheduling_jobs(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS receipt_store (
+    id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL,
+    name TEXT,
+    mime_type TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS agent_config (
