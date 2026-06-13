@@ -601,6 +601,7 @@ async function saveUtil() {
 }
 
 async function loadUtilities() {
+  if (!TOKEN) return;
   const bills = await api('/api/utilities');
   const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
 
