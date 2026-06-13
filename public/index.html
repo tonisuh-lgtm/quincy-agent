@@ -531,6 +531,12 @@ async function loadPayments() {
   }).join('');
 }
 
+async function deleteUtil(id) {
+  if (!confirm('Delete this utility bill?')) return;
+  await api(`/api/utilities/${id}`, {method:'DELETE'});
+  loadUtilities();
+}
+
 async function notifyUtil(id) {
   if (!confirm('Send utility bill notification to both tenants now?')) return;
   await api(`/api/utilities/${id}/notify`, {method:'POST'});
@@ -654,6 +660,7 @@ async function loadUtilities() {
       <div style="text-align:right;">
         <div class="muted">${fmtTime(b.timestamp)}</div>
         <div style="font-size:12px;margin-top:4px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:11px;">Send to tenants</button>`}</div>
+        <button onclick="deleteUtil(${b.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;margin-top:4px;">✕ delete</button>
       </div>
     </div>
   </div>`).join('');
