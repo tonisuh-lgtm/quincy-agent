@@ -171,5 +171,9 @@ const seedConfig = () => {
 seedTenants();
 seedConfig();
 
+// Migrations — add new columns to existing databases
+try { db.exec(`ALTER TABLE utility_bills ADD COLUMN receipt_url TEXT`); } catch(e) {}
+try { db.exec(`CREATE TABLE IF NOT EXISTS receipt_store (id INTEGER PRIMARY KEY, data TEXT NOT NULL, name TEXT, mime_type TEXT, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
+
 console.log('Database ready');
 module.exports = db;
