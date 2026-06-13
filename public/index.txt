@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>9 Quincy Management</title>
+<style>
+  :root {
+    --bg: #0f0f0f; --bg2: #171717; --bg3: #1e1e1e;
+    --text: #f0ede8; --text2: #888; --text3: #555;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+    --gold: #c8a96e; --gold-dark: #8b6914;
+    --red: #E24B4A; --green: #3B6D11; --amber: #BA7517;
+    --blue: #185FA5; --teal: #0F6E56;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; }
+  #app { display: none; max-width: 780px; margin: 0 auto; padding: 0 16px 80px; }
+  #login { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 40px; width: 320px; text-align: center; }
+  .login-box h1 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .login-box p { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
+  input, select, textarea { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 10px 12px; width: 100%; font-family: inherit; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--border2); }
+  button { background: transparent; border: 0.5px solid var(--border2); border-radius: 8px; color: var(--text2); cursor: pointer; font-size: 13px; font-family: inherit; padding: 8px 16px; transition: all 0.15s; }
+  button:hover { background: var(--bg3); color: var(--text); }
+  .btn-primary { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border: none; color: #0f0f0f; font-weight: 600; }
+  .btn-primary:hover { opacity: 0.9; color: #0f0f0f; }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-success { border-color: var(--green); color: #97C459; }
+  .nav { border-bottom: 0.5px solid var(--border); display: flex; gap: 4px; padding: 12px 0 0; position: sticky; top: 0; background: var(--bg); z-index: 10; overflow-x: auto; }
+  .nav-btn { border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; color: var(--text2); display: flex; align-items: center; gap: 6px; padding: 8px 14px; white-space: nowrap; font-size: 13px; }
+  .nav-btn.active { border-bottom-color: var(--gold); color: var(--text); }
+  .badge { background: var(--red); border-radius: 10px; color: white; font-size: 11px; min-width: 18px; padding: 1px 6px; text-align: center; }
+  .page { display: none; padding-top: 24px; }
+  .page.active { display: block; }
+  h2 { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
+  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 1rem; cursor: pointer; }
+  .metric label { color: var(--text2); display: block; font-size: 12px; margin-bottom: 6px; }
+  .metric .val { font-size: 22px; font-weight: 500; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row.between { justify-content: space-between; }
+  .row.wrap { flex-wrap: wrap; }
+  .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; flex-shrink: 0; }
+  .tag { border-radius: 10px; font-size: 11px; font-weight: 500; padding: 2px 8px; }
+  .tag-complaint { background: rgba(226,75,74,0.15); color: var(--red); }
+  .tag-maintenance { background: rgba(186,117,23,0.15); color: var(--amber); }
+  .tag-payment { background: rgba(24,95,165,0.15); color: #4CA3DD; }
+  .tag-general { background: var(--bg3); color: var(--text2); }
+  .tag-scheduling { background: rgba(200,169,110,0.15); color: var(--gold); }
+  .tag-emergency { background: rgba(226,75,74,0.25); color: var(--red); font-weight: 700; }
+  .tag-urgent { background: rgba(186,117,23,0.25); color: var(--amber); }
+  .tag-routine { background: var(--bg3); color: var(--text2); }
+  .tag-new { background: rgba(226,75,74,0.15); color: var(--red); }
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 8px 0; }
+  .progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .input-group.single { grid-template-columns: 1fr; }
+  label.field-label { color: var(--text2); display: block; font-size: 12px; margin-bottom: 4px; }
+  .muted { color: var(--text2); font-size: 12px; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-btn { border-radius: 20px; font-size: 12px; padding: 4px 12px; }
+  .filter-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(200,169,110,0.1); }
+  .section-title { color: var(--text2); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .inbound-msg { background: var(--bg2); border-radius: 12px 12px 12px 4px; padding: 10px 14px; max-width: 85%; font-size: 13px; line-height: 1.6; }
+  .outbound-msg { background: rgba(200,169,110,0.12); border: 0.5px solid rgba(200,169,110,0.2); border-radius: 12px 12px 4px 12px; padding: 10px 14px; max-width: 85%; font-size: 13px; line-height: 1.6; margin-left: auto; }
+  .msg-time { color: var(--text3); font-size: 11px; }
+  textarea { resize: vertical; min-height: 80px; }
+  .slot-option { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+  .slot-option:hover { border-color: var(--gold); }
+  .empty { color: var(--text2); font-size: 14px; text-align: center; padding: 40px 0; }
+  .info-box { background: var(--bg2); border: 0.5px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--text2); }
+  @media (max-width: 500px) { .input-group { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-box">
+    <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#c8a96e,#8b6914);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#0f0f0f;margin:0 auto 16px;">9Q</div>
+    <h1>9 Quincy Management</h1>
+    <p>Property agent dashboard</p>
+    <input type="password" id="pwd-input" placeholder="Dashboard password" style="margin-bottom:12px;" />
+    <button class="btn-primary" style="width:100%;" onclick="login()">Sign in</button>
+    <p id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;">Wrong password.</p>
+  </div>
+</div>
+
+<div id="app">
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('dashboard',this)" data-page="dashboard">🏠 Dashboard</button>
+    <button class="nav-btn" onclick="showPage('inbox',this)" data-page="inbox">📬 Inbox <span class="badge" id="inbox-badge" style="display:none">0</span></button>
+    <button class="nav-btn" onclick="showPage('payments',this)" data-page="payments">💰 Payments</button>
+    <button class="nav-btn" onclick="showPage('utilities',this)" data-page="utilities">⚡ Utilities</button>
+    <button class="nav-btn" onclick="showPage('scheduling',this)" data-page="scheduling">📅 Scheduling</button>
+    <button class="nav-btn" onclick="showPage('broadcast',this)" data-page="broadcast">📣 Broadcast</button>
+    <button class="nav-btn" onclick="showPage('settings',this)" data-page="settings">⚙️ Settings</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div style="margin-bottom:20px;">
+      <p class="muted" style="margin-bottom:4px;">9 Quincy Pl NE #2 · Washington DC</p>
+      <h2 style="margin:0;">Overview</h2>
+      <p class="muted" id="dash-month"></p>
+    </div>
+    <div class="metric-grid" id="dash-metrics"></div>
+    <div id="dash-tenants"></div>
+  </div>
+
+  <!-- INBOX -->
+  <div id="page-inbox" class="page">
+    <div class="row between" style="margin-bottom:16px;">
+      <h2 style="margin:0;">Tenant inbox</h2>
+    </div>
+    <div class="filter-row" id="inbox-filters">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('unread',this)">Needs review</button>
+      <button class="filter-btn" onclick="setFilter('complaint',this)">Complaints</button>
+      <button class="filter-btn" onclick="setFilter('maintenance',this)">Maintenance</button>
+      <button class="filter-btn" onclick="setFilter('payment',this)">Payment</button>
+      <button class="filter-btn" onclick="setFilter('scheduling',this)">Scheduling</button>
+    </div>
+    <div id="inbox-list"></div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div id="page-payments" class="page">
+    <div class="row between" style="margin-bottom:16px;">
+      <h2 style="margin:0;">Payment tracker</h2>
+      <button onclick="togglePaymentForm()" class="btn-primary" style="font-size:13px;">+ Log payment</button>
+    </div>
+    <div id="payment-form" style="display:none;" class="card">
+      <div class="input-group">
+        <div><label class="field-label">Tenant</label><select id="pf-tenant"><option value="temi">Temi</option><option value="chloe">Chloe</option></select></div>
+        <div><label class="field-label">Type</label><select id="pf-type"><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="deposit">Deposit</option><option value="late_fee">Late fee</option><option value="other">Other</option></select></div>
+        <div><label class="field-label">Amount ($)</label><input type="number" id="pf-amount" placeholder="0.00" /></div>
+        <div><label class="field-label">Month</label><input type="month" id="pf-month" /></div>
+      </div>
+      <input id="pf-note" placeholder="Note (e.g. Apple Pay, partial)" style="margin-bottom:10px;" />
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="savePayment()">Save</button>
+        <button onclick="togglePaymentForm()">Cancel</button>
+      </div>
+    </div>
+    <div id="payments-list"></div>
+  </div>
+
+  <!-- UTILITIES -->
+  <div id="page-utilities" class="page">
+    <div class="row between" style="margin-bottom:16px;">
+      <h2 style="margin:0;">Utility bills</h2>
+      <button onclick="toggleUtilForm()" class="btn-primary" style="font-size:13px;">+ Add bill</button>
+    </div>
+    <div class="info-box">
+      <strong style="color:var(--text);">Split rules:</strong> Water ÷5 (you + Temi + Chloe + 2 downstairs) · Gas / Electricity / Internet ÷3 (you + Temi + Chloe)
+    </div>
+    <div id="util-form" style="display:none;" class="card">
+      <div class="input-group">
+        <div><label class="field-label">Utility</label>
+          <select id="uf-type">
+            <option value="water">Water (÷5)</option>
+            <option value="electricity">Electricity (÷3)</option>
+            <option value="gas">Gas (÷3)</option>
+            <option value="internet">Internet (÷3)</option>
+          </select>
+        </div>
+        <div><label class="field-label">Period (e.g. June 2026)</label><input id="uf-period" placeholder="e.g. June 2026" /></div>
+        <div><label class="field-label">Total bill ($)</label><input type="number" id="uf-amount" placeholder="0.00" /></div>
+        <div><label class="field-label">Notes</label><input id="uf-notes" placeholder="Optional" /></div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="field-label">Receipt (optional — PDF or image)</label>
+        <input type="file" id="uf-receipt" accept="image/*,.pdf" style="font-size:12px;padding:6px;" />
+      </div>
+      <div id="util-calc" style="display:none;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;"></div>
+      <div class="row" style="gap:8px;">
+        <button onclick="calcUtil()">Calculate split</button>
+        <button id="util-save-btn" style="display:none;" class="btn-primary" onclick="saveUtil()">Save bill</button>
+        <button onclick="toggleUtilForm()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Monthly summary -->
+    <div id="util-monthly-summary"></div>
+
+    <!-- All bills -->
+    <div style="margin-top:24px;">
+      <div class="section-title">All bills</div>
+      <div id="util-list"></div>
+    </div>
+  </div>
+
+  <!-- SCHEDULING -->
+  <div id="page-scheduling" class="page">
+    <div class="row between" style="margin-bottom:16px;">
+      <h2 style="margin:0;">Scheduling</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
+      <button class="btn-primary" style="padding:14px;" onclick="startScheduling('cleaning')">🧹 Schedule Cleaning</button>
+      <button class="btn-primary" style="padding:14px;" onclick="startScheduling('pest_control')">🪲 Schedule Pest Control</button>
+      <button style="padding:14px;" onclick="showThumbтack()">🔨 Thumbtack Draft</button>
+    </div>
+    <div id="thumbtack-section" style="display:none;" class="card">
+      <p style="font-weight:500;margin-bottom:10px;">Generate Thumbtack job post</p>
+      <textarea id="tt-issue" placeholder="Describe the issue (e.g. kitchen faucet leaking, need plumber)" style="margin-bottom:10px;"></textarea>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="genThumbтack()">Generate post</button>
+        <button onclick="document.getElementById('thumbtack-section').style.display='none'">Cancel</button>
+      </div>
+      <div id="tt-result" style="margin-top:12px;display:none;"></div>
+    </div>
+    <div id="scheduling-list"></div>
+  </div>
+
+  <!-- BROADCAST -->
+  <div id="page-broadcast" class="page">
+    <div class="row between" style="margin-bottom:16px;">
+      <h2 style="margin:0;">Broadcast message</h2>
+    </div>
+    <div class="card">
+      <div class="input-group">
+        <div><label class="field-label">Send to</label>
+          <select id="bc-target">
+            <option value="both">Both tenants</option>
+            <option value="temi">Temi only</option>
+            <option value="chloe">Chloe only</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+      <label class="field-label">Message</label>
+      <textarea id="bc-content" placeholder="Type your message..." style="margin-bottom:10px;"></textarea>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="sendBroadcast()">Send via agent</button>
+        <button onclick="genBroadcast()">AI draft</button>
+      </div>
+    </div>
+    <div id="bc-draft" style="display:none;" class="card">
+      <p class="muted" style="margin-bottom:8px;">AI draft — edit before sending:</p>
+      <textarea id="bc-draft-text" rows="5" style="margin-bottom:10px;"></textarea>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="sendDraft()">Send this</button>
+        <button onclick="document.getElementById('bc-draft').style.display='none'">Discard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="page">
+    <h2>Settings</h2>
+    <div class="card" style="margin-bottom:16px;">
+      <p style="font-weight:500;margin-bottom:12px;">Agent instructions</p>
+      <p class="muted" style="margin-bottom:12px;">Edit how the agent behaves. Changes take effect immediately for all new messages.</p>
+      <div id="config-fields"></div>
+      <button class="btn-primary" onclick="saveConfig()" style="margin-top:12px;">Save instructions</button>
+    </div>
+    <div class="card">
+      <p style="font-weight:500;margin-bottom:12px;">Add new tenant</p>
+      <div class="input-group">
+        <div><label class="field-label">ID (short, no spaces)</label><input id="nt-id" placeholder="e.g. sarah" /></div>
+        <div><label class="field-label">Full name</label><input id="nt-name" /></div>
+        <div><label class="field-label">Short name</label><input id="nt-short" /></div>
+        <div><label class="field-label">Phone (+1...)</label><input id="nt-phone" /></div>
+        <div><label class="field-label">Payment method</label><input id="nt-payment" placeholder="e.g. Zelle" /></div>
+        <div><label class="field-label">Monthly rent ($)</label><input type="number" id="nt-rent" /></div>
+        <div><label class="field-label">Lease start</label><input type="date" id="nt-start" /></div>
+        <div><label class="field-label">Lease end</label><input type="date" id="nt-end" /></div>
+      </div>
+      <button class="btn-primary" onclick="addTenant()">Add tenant</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let TOKEN = '';
+let inboxFilter = 'all';
+let currentConversations = [];
+let utilCalcResult = null;
+
+// ── AUTH ──────────────────────────────────────────
+async function login() {
+  const pwd = document.getElementById('pwd-input').value;
+  const res = await fetch('/api/auth', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) });
+  if (res.ok) {
+    TOKEN = pwd;
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+const api = async (path, opts = {}) => {
+  const res = await fetch(path, { headers: {'x-dashboard-token': TOKEN, 'Content-Type': 'application/json', ...opts.headers}, ...opts });
+  return res.json();
+};
+
+// ── INIT ──────────────────────────────────────────
+function initApp() {
+  loadDashboard();
+  loadInbox();
+  loadPayments();
+  loadUtilities();
+  loadScheduling();
+  loadConfig();
+  const m = document.getElementById('pf-month');
+  if (m) m.value = new Date().toISOString().slice(0,7);
+  setInterval(() => { loadDashboard(); loadInbox(); }, 30000);
+}
+
+function showPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── DASHBOARD ─────────────────────────────────────
+async function loadDashboard() {
+  const d = await api('/api/dashboard');
+  document.getElementById('dash-month').textContent = new Date(d.currentMonth + '-01').toLocaleDateString('en-US', {month:'long',year:'numeric'});
+
+  // Update badge
+  const badge = document.getElementById('inbox-badge');
+  badge.textContent = d.unread;
+  badge.style.display = d.unread > 0 ? 'inline' : 'none';
+
+  document.getElementById('dash-metrics').innerHTML = `
+    <div class="metric" onclick="showPage('inbox',document.querySelector('[data-page=inbox]'))">
+      <label>Needs review</label>
+      <div class="val" style="color:${d.unread>0?'var(--red)':'var(--text)'};">${d.unread}</div>
+    </div>
+    <div class="metric" onclick="showPage('inbox',document.querySelector('[data-page=inbox]'))">
+      <label>Open complaints</label>
+      <div class="val" style="color:${d.complaints>0?'var(--red)':'var(--text)'};">${d.complaints}</div>
+    </div>
+    <div class="metric" onclick="showPage('scheduling',document.querySelector('[data-page=scheduling]'))">
+      <label>Active jobs</label>
+      <div class="val" style="color:${d.pendingScheduling>0?'var(--amber)':'var(--text)'};">${d.pendingScheduling}</div>
+    </div>
+  `;
+
+  document.getElementById('dash-tenants').innerHTML = d.tenants.map(t => {
+    const pct = Math.min(100, Math.round((t.paid_this_month / t.rent) * 100));
+    const owed = t.balance_due;
+    return `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="row between" style="margin-bottom:12px;">
+        <div class="row" style="gap:10px;">
+          <div class="avatar" style="width:38px;height:38px;background:${t.color};font-size:12px;">${t.initials}</div>
+          <div>
+            <div style="font-weight:500;">${t.short_name}</div>
+            <div class="muted">${t.payment_method}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="color:${owed>0?'var(--amber)':'var(--green)'};">${owed>0?'$'+owed.toFixed(2)+' due':'Paid ✓'}</div>
+          <div class="muted">$${t.paid_this_month.toFixed(2)} / $${t.rent.toFixed(2)}</div>
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${owed>0?'var(--amber)':'var(--green)'}"></div></div>
+      ${t.last_message ? `<div class="muted" style="margin-top:10px;font-size:12px;">Last: "${t.last_message.content.slice(0,60)}${t.last_message.content.length>60?'...':''}"</div>` : ''}
+      <div class="muted" style="margin-top:4px;">Lease ends ${new Date(t.lease_end).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── INBOX ─────────────────────────────────────────
+async function loadInbox() {
+  let url = '/api/conversations?limit=60';
+  if (inboxFilter === 'unread') url += '&needs_review=1';
+  else if (['complaint','maintenance','payment','scheduling'].includes(inboxFilter)) url += `&category=${inboxFilter}`;
+  currentConversations = await api(url);
+  renderInbox();
+}
+
+function setFilter(f, btn) {
+  inboxFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadInbox();
+}
+
+function renderInbox() {
+  const el = document.getElementById('inbox-list');
+  if (!currentConversations.length) { el.innerHTML = '<div class="empty">No messages.</div>'; return; }
+
+  // Group by tenant conversation threads
+  const grouped = {};
+  currentConversations.forEach(m => {
+    if (!grouped[m.tenant_id]) grouped[m.tenant_id] = [];
+    grouped[m.tenant_id].push(m);
+  });
+
+  el.innerHTML = Object.entries(grouped).map(([tid, msgs]) => {
+    const latest = msgs[0];
+    const unread = msgs.filter(m => m.needs_review && !m.reviewed).length;
+    return `
+    <div class="card" style="border-left:3px solid ${latest.color};">
+      <div class="row between" style="margin-bottom:10px;">
+        <div class="row" style="gap:8px;">
+          <div class="avatar" style="width:32px;height:32px;background:${latest.color};font-size:11px;">${latest.initials}</div>
+          <span style="font-weight:500;">${latest.short_name}</span>
+          ${unread>0?`<span class="tag tag-new">+${unread} new</span>`:''}
+          <span class="tag tag-${latest.urgency||'routine'}">${latest.urgency||'routine'}</span>
+        </div>
+        <div class="row" style="gap:6px;">
+          ${unread>0?`<button onclick="markAllReviewed('${tid}')" style="font-size:11px;">Mark read</button>`:''}
+        </div>
+      </div>
+      <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;">
+        ${[...msgs].reverse().map(m => `
+          <div>
+            <div class="${m.direction==='inbound'?'inbound-msg':'outbound-msg'}">${escHtml(m.content)}</div>
+            <div class="msg-time" style="${m.direction==='outbound'?'text-align:right;':''}">${fmtTime(m.timestamp)}</div>
+          </div>
+        `).join('')}
+      </div>
+      <hr class="divider">
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button onclick="openReply('${tid}')" class="btn-primary" style="font-size:12px;">Reply</button>
+        ${msgs.some(m=>m.category==='complaint'&&!m.resolved)?`<button onclick="resolveComplaint('${msgs.find(m=>m.category==='complaint'&&!m.resolved)?.id}')" class="btn-success" style="font-size:12px;">Resolve complaint</button>`:''}
+      </div>
+      <div id="reply-${tid}" style="display:none;margin-top:10px;">
+        <textarea id="reply-text-${tid}" placeholder="Your message to ${latest.short_name}..." rows="3" style="margin-bottom:8px;"></textarea>
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" onclick="sendReply('${tid}')" style="font-size:12px;">Send via agent</button>
+          <button onclick="closeReply('${tid}')" style="font-size:12px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openReply(tid) { document.getElementById('reply-'+tid).style.display='block'; }
+function closeReply(tid) { document.getElementById('reply-'+tid).style.display='none'; }
+
+async function sendReply(tid) {
+  const content = document.getElementById('reply-text-'+tid).value.trim();
+  if (!content) return;
+  await api('/api/send', {method:'POST', body: JSON.stringify({tenant_id:tid, content})});
+  document.getElementById('reply-text-'+tid).value='';
+  closeReply(tid);
+  loadInbox();
+}
+
+async function markAllReviewed(tid) {
+  const msgs = currentConversations.filter(m => m.tenant_id===tid && m.needs_review && !m.reviewed);
+  for (const m of msgs) await api(`/api/conversations/${m.id}/review`, {method:'POST'});
+  loadInbox();
+  loadDashboard();
+}
+
+async function resolveComplaint(id) {
+  await api(`/api/conversations/${id}/resolve`, {method:'POST'});
+  loadInbox();
+  loadDashboard();
+}
+
+// ── PAYMENTS ──────────────────────────────────────
+function togglePaymentForm() {
+  const f = document.getElementById('payment-form');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  if (f.style.display==='block') {
+    const m = document.getElementById('pf-month');
+    m.value = new Date().toISOString().slice(0,7);
+  }
+}
+
+async function savePayment() {
+  const data = {
+    tenant_id: document.getElementById('pf-tenant').value,
+    amount: document.getElementById('pf-amount').value,
+    type: document.getElementById('pf-type').value,
+    month: document.getElementById('pf-month').value,
+    note: document.getElementById('pf-note').value,
+  };
+  if (!data.amount) return alert('Enter an amount');
+  await api('/api/payments', {method:'POST', body: JSON.stringify(data)});
+  togglePaymentForm();
+  loadPayments();
+  loadDashboard();
+}
+
+async function loadPayments() {
+  const payments = await api('/api/payments');
+  const byMonth = {};
+  payments.forEach(p => {
+    if (!byMonth[p.month]) byMonth[p.month] = [];
+    byMonth[p.month].push(p);
+  });
+
+  const el = document.getElementById('payments-list');
+  if (!payments.length) { el.innerHTML = '<div class="empty">No payments logged yet.</div>'; return; }
+
+  el.innerHTML = Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).map(([month, ps]) => {
+    const label = new Date(month+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const temiPaid = ps.filter(p=>p.tenant_id==='temi'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
+    const chloePaid = ps.filter(p=>p.tenant_id==='chloe'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
+    const temiRent = 1850, chloeRent = 1750;
+    return `
+    <div style="margin-bottom:24px;">
+      <div class="row between" style="margin-bottom:10px;">
+        <span style="font-weight:500;">${label}</span>
+        <span class="muted">Temi ${temiPaid>=temiRent?'✓ paid':`$${(temiRent-temiPaid).toFixed(2)} due`} · Chloe ${chloePaid>=chloeRent?'✓ paid':`$${(chloeRent-chloePaid).toFixed(2)} due`}</span>
+      </div>
+      ${ps.map(p=>`
+      <div class="row between" style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+        <div class="row" style="gap:10px;">
+          <div class="avatar" style="width:30px;height:30px;background:${p.color};font-size:10px;">${p.initials}</div>
+          <div>
+            <span style="font-weight:500;">$${p.amount.toFixed(2)}</span>
+            <span class="muted"> · ${p.type}</span>
+            ${p.note?`<div class="muted">${p.note}</div>`:''}
+          </div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <span class="muted">${fmtTime(p.timestamp)}</span>
+          <button onclick="deletePayment(${p.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;">✕</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+async function notifyUtil(id) {
+  if (!confirm('Send utility bill notification to both tenants now?')) return;
+  await api(`/api/utilities/${id}/notify`, {method:'POST'});
+  alert('✅ Tenants notified!');
+  loadUtilities();
+}
+
+async function notifyAllUtil(period) {
+  if (!confirm(`Send combined utility summary for ${period} to both tenants?`)) return;
+  const res = await api(`/api/utilities/notify-all?period=${encodeURIComponent(period)}`, {method:'POST'});
+  if (res.ok) { alert('✅ Combined utility summary sent to both tenants!'); loadUtilities(); }
+}
+
+async function deletePayment(id) {
+  if (!confirm('Delete this payment?')) return;
+  await api(`/api/payments/${id}`, {method:'DELETE'});
+  loadPayments();
+  loadDashboard();
+}
+
+// ── UTILITIES ─────────────────────────────────────
+function toggleUtilForm() {
+  const f = document.getElementById('util-form');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  document.getElementById('util-calc').style.display='none';
+  document.getElementById('util-save-btn').style.display='none';
+  utilCalcResult = null;
+}
+
+function calcUtil() {
+  const type = document.getElementById('uf-type').value;
+  const amt = parseFloat(document.getElementById('uf-amount').value);
+  if (!amt) return alert('Enter a bill amount');
+  const divisors = {water:5,electricity:3,gas:3,internet:3};
+  const d = divisors[type]||3;
+  const share = (amt/d).toFixed(2);
+  utilCalcResult = {type, total:amt, period:document.getElementById('uf-period').value, notes:document.getElementById('uf-notes').value, share:parseFloat(share)};
+  const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
+  document.getElementById('util-calc').innerHTML=`<span style="font-weight:500;">${labels[type]}</span> · Total: <strong>$${amt.toFixed(2)}</strong><br>Each tenant pays: <strong style="color:var(--gold);">$${share}</strong>`;
+  document.getElementById('util-calc').style.display='block';
+  document.getElementById('util-save-btn').style.display='inline-block';
+}
+
+async function saveUtil() {
+  if (!utilCalcResult) return;
+  const fileInput = document.getElementById('uf-receipt');
+  let receiptData = null;
+  if (fileInput && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    receiptData = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve({ data: e.target.result, name: file.name, type: file.type });
+      reader.readAsDataURL(file);
+    });
+  }
+  const result = await api('/api/utilities', {method:'POST', body:JSON.stringify({...utilCalcResult, receipt: receiptData})});
+  if (result.ok) {
+    alert('Bill saved. Use "Send to tenants" when all bills for the month are ready.');
+    toggleUtilForm();
+    loadUtilities();
+  }
+}
+
+async function loadUtilities() {
+  const bills = await api('/api/utilities');
+  const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
+
+  // Group by period
+  const byPeriod = {};
+  bills.forEach(b => {
+    const p = b.period || 'Unknown period';
+    if (!byPeriod[p]) byPeriod[p] = [];
+    byPeriod[p].push(b);
+  });
+
+  // Monthly summary
+  const summaryEl = document.getElementById('util-monthly-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = Object.entries(byPeriod).sort((a,b)=>b[0].localeCompare(a[0])).map(([period, pbills]) => {
+      const totalShare = pbills.reduce((s,b) => s + b.tenant_share, 0);
+      const allNotified = pbills.every(b => b.notified);
+      return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="row between" style="margin-bottom:12px;">
+          <span style="font-weight:500;">${period}</span>
+          <span style="color:var(--gold);font-weight:500;">Each tenant: $${totalShare.toFixed(2)}</span>
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          ${pbills.map(b=>`
+          <tr style="border-bottom:0.5px solid var(--border);">
+            <td style="padding:6px 0;color:var(--text2);">${labels[b.type]||b.type}</td>
+            <td style="padding:6px 0;text-align:center;color:var(--text2);">$${b.total.toFixed(2)} total</td>
+            <td style="padding:6px 0;text-align:right;color:var(--gold);">$${b.tenant_share.toFixed(2)} each</td>
+            <td style="padding:6px 0;text-align:right;">${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:11px;">📄</a>`:''}</td>
+          </tr>`).join('')}
+          <tr>
+            <td colspan="2" style="padding:8px 0;font-weight:500;">Total per tenant</td>
+            <td style="padding:8px 0;text-align:right;font-weight:500;color:var(--gold);">$${totalShare.toFixed(2)}</td>
+            <td></td>
+          </tr>
+        </table>
+        ${!allNotified
+          ? `<button onclick="notifyAllUtil('${period}')" class="btn-primary" style="margin-top:12px;font-size:12px;width:100%;">Send combined notice to both tenants</button>`
+          : `<div style="color:var(--green);font-size:12px;margin-top:10px;">✓ Tenants notified</div>`}
+      </div>`;
+    }).join('');
+  }
+
+  // All bills
+  const el = document.getElementById('util-list');
+  if (!bills.length) { if(el) el.innerHTML='<div class="empty">No utility bills logged yet.</div>'; if(summaryEl) summaryEl.innerHTML=''; return; }
+  if (el) el.innerHTML = bills.map(b=>`
+  <div class="card" style="margin-bottom:10px;">
+    <div class="row between">
+      <div>
+        <div style="font-weight:500;">${labels[b.type]||b.type} · ${b.period||'—'}</div>
+        <div class="muted">Total: $${b.total.toFixed(2)} · Per tenant: <strong style="color:var(--gold);">$${b.tenant_share.toFixed(2)}</strong></div>
+        ${b.notes?`<div class="muted">${b.notes}</div>`:''}
+        ${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:12px;">📄 View receipt</a>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div class="muted">${fmtTime(b.timestamp)}</div>
+        <div style="font-size:12px;margin-top:4px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:11px;">Send to tenants</button>`}</div>
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+// ── SCHEDULING ────────────────────────────────────
+async function startScheduling(type) {
+  const label = type==='cleaning'?'cleaning':'pest control';
+  const notes = prompt(`Optional notes for the ${label} scheduling (e.g. focus areas, special instructions):`)||'';
+  if (!confirm(`Start scheduling ${label}? Agent will text both tenants asking for availability.`)) return;
+  const res = await api('/api/scheduling/start', {method:'POST', body:JSON.stringify({type,notes})});
+  if (res.ok) {
+    alert(`✅ Done! Agent texted Temi and Chloe asking for availability. Job #${res.jobId}`);
+    loadScheduling();
+  }
+}
+
+async function loadScheduling() {
+  const jobs = await api('/api/scheduling');
+  const el = document.getElementById('scheduling-list');
+  if (!jobs.length) { el.innerHTML='<div class="empty">No scheduled services yet.</div>'; return; }
+
+  const statusLabels = {
+    collecting_availability:'Collecting availability',
+    awaiting_owner_approval:'Awaiting your approval',
+    confirmed:'Confirmed ✓',
+    completed:'Completed',
+    cancelled:'Cancelled',
+  };
+
+  el.innerHTML = jobs.map(j=>`
+  <div class="card">
+    <div class="row between" style="margin-bottom:10px;">
+      <div>
+        <span style="font-weight:500;">${j.type==='cleaning'?'🧹 Cleaning':j.type==='pest_control'?'🪲 Pest Control':'🔨 '+j.provider_name}</span>
+        <span class="tag" style="margin-left:8px;background:var(--bg3);color:var(--text2);">${statusLabels[j.status]||j.status}</span>
+      </div>
+      <span class="muted">Job #${j.id}</span>
+    </div>
+    ${j.confirmed_slot?`<div style="color:var(--green);margin-bottom:8px;">📅 ${j.confirmed_slot}</div>`:''}
+    ${j.availability&&j.availability.length?`
+      <div style="margin-bottom:10px;">
+        <div class="section-title">Availability received</div>
+        ${j.availability.map(a=>`<div class="muted">• <strong style="color:var(--text);">${a.party_name}:</strong> ${a.availability_text==='pending'?'Waiting..':a.availability_text}</div>`).join('')}
+      </div>`:''}
+    ${j.status==='awaiting_owner_approval'&&j.proposed_slots&&j.proposed_slots.length?`
+      <div>
+        <div class="section-title">Suggested times — tap to confirm</div>
+        ${j.proposed_slots.map(s=>`
+          <div class="slot-option" onclick="approveSlot(${j.id},'${s.slot}')">
+            <div style="font-weight:500;">${s.slot}</div>
+            <div class="muted">${s.reasoning}</div>
+          </div>`).join('')}
+      </div>`:''}
+    ${j.type==='cleaning'&&j.status==='confirmed'&&!j.provider_confirmed?`
+      <div style="margin-top:10px;">
+        <p class="muted" style="margin-bottom:6px;">Book at <a href="https://dazzlingcleaners.com" target="_blank" style="color:var(--gold);">dazzlingcleaners.com</a> for ${j.confirmed_slot}, then paste confirmation:</p>
+        <div class="row" style="gap:8px;">
+          <input id="dz-confirm-${j.id}" placeholder="Confirmation # or details" />
+          <button onclick="confirmDazzling(${j.id})" class="btn-primary" style="font-size:12px;">Confirm</button>
+        </div>
+      </div>`:''}
+  </div>`).join('');
+}
+
+async function approveSlot(jobId, slot) {
+  if (!confirm(`Confirm: ${slot}?`)) return;
+  await api(`/api/scheduling/${jobId}/approve`, {method:'POST', body:JSON.stringify({slot})});
+  alert('✅ Confirmed! Tenants notified. Mehmet texted (pest control) or book Dazzling (cleaning).');
+  loadScheduling();
+}
+
+async function confirmDazzling(jobId) {
+  const confirmation = document.getElementById('dz-confirm-'+jobId).value.trim();
+  if (!confirmation) return alert('Enter the confirmation details');
+  await api(`/api/scheduling/${jobId}/dazzling-confirm`, {method:'POST', body:JSON.stringify({confirmation})});
+  alert('✅ Logged! Tenants have already been notified.');
+  loadScheduling();
+}
+
+function showThumbтack() {
+  const s = document.getElementById('thumbtack-section');
+  s.style.display = s.style.display==='none'?'block':'none';
+}
+
+async function genThumbтack() {
+  const issue = document.getElementById('tt-issue').value.trim();
+  if (!issue) return alert('Describe the issue first');
+  document.getElementById('tt-result').innerHTML='<div class="muted">Generating...</div>';
+  document.getElementById('tt-result').style.display='block';
+  const res = await api('/api/thumbtack/draft', {method:'POST', body:JSON.stringify({issue})});
+  if (res.ok) {
+    const d = res.draft;
+    document.getElementById('tt-result').innerHTML=`
+    <div style="background:var(--bg3);border-radius:8px;padding:14px;">
+      <div style="font-weight:500;margin-bottom:8px;">${d.title}</div>
+      <div class="muted" style="margin-bottom:6px;"><strong style="color:var(--text);">Category:</strong> ${d.category}</div>
+      <div style="margin-bottom:8px;font-size:13px;">${d.description}</div>
+      <div class="muted"><strong style="color:var(--text);">Budget:</strong> ${d.budget_range}</div>
+      <div class="muted"><strong style="color:var(--text);">Timeline:</strong> ${d.urgency}</div>
+      ${d.questions_to_ask_pros?.length?`<div style="margin-top:8px;"><div class="section-title">Ask pros:</div>${d.questions_to_ask_pros.map(q=>`<div class="muted">• ${q}</div>`).join('')}</div>`:''}
+      <button onclick="navigator.clipboard.writeText('${escHtml(d.title+': '+d.description)}')" style="margin-top:12px;font-size:12px;">Copy for Thumbtack</button>
+    </div>
+    <div style="margin-top:12px;">
+      <p class="muted" style="margin-bottom:8px;">Once you hire someone, enter their details to schedule with tenants:</p>
+      <div class="input-group">
+        <div><label class="field-label">Pro name</label><input id="tt-pro-name" /></div>
+        <div><label class="field-label">Pro phone (+1...)</label><input id="tt-pro-phone" /></div>
+      </div>
+      <input id="tt-pro-slot" placeholder="Confirmed time slot (or leave blank to ask tenants)" style="margin-bottom:8px;" />
+      <button class="btn-primary" onclick="scheduleThumbтackPro()" style="font-size:12px;">Schedule with tenants</button>
+    </div>`;
+  }
+}
+
+async function scheduleThumbтackPro() {
+  const issue = document.getElementById('tt-issue').value;
+  await api('/api/thumbtack/schedule', {method:'POST', body:JSON.stringify({
+    proName: document.getElementById('tt-pro-name').value,
+    proPhone: document.getElementById('tt-pro-phone').value,
+    jobDescription: issue,
+    slot: document.getElementById('tt-pro-slot').value || null,
+  })});
+  alert('✅ Scheduling started with tenants!');
+  loadScheduling();
+}
+
+// ── BROADCAST ─────────────────────────────────────
+async function sendBroadcast() {
+  const content = document.getElementById('bc-content').value.trim();
+  const target = document.getElementById('bc-target').value;
+  if (!content) return alert('Enter a message');
+  if (!confirm(`Send this message to ${target==='both'?'both tenants':target}?`)) return;
+  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id:target, content})});
+  document.getElementById('bc-content').value='';
+  alert('✅ Sent!');
+}
+
+async function genBroadcast() {
+  const target = document.getElementById('bc-target').value;
+  const context = document.getElementById('bc-content').value.trim();
+  if (!context) return alert('Add some context first about what you want to say');
+  document.getElementById('bc-draft').style.display='block';
+  document.getElementById('bc-draft-text').value='Generating...';
+  const res = await fetch('/api/broadcast', {method:'POST', headers:{'x-dashboard-token':TOKEN,'Content-Type':'application/json'}, body:JSON.stringify({tenant_id:'_draft', content:context})});
+  // For now just pre-fill — in a real setup this would call a draft endpoint
+  document.getElementById('bc-draft-text').value=context;
+}
+
+async function sendDraft() {
+  const content = document.getElementById('bc-draft-text').value.trim();
+  const target = document.getElementById('bc-target').value;
+  if (!content) return;
+  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id:target, content})});
+  document.getElementById('bc-draft').style.display='none';
+  document.getElementById('bc-content').value='';
+  alert('✅ Sent!');
+}
+
+// ── SETTINGS ──────────────────────────────────────
+async function loadConfig() {
+  const config = await api('/api/config');
+  const labels = {
+    agent_persona:'Agent personality',
+    urgency_rules:'Urgency classification rules',
+    gather_maintenance:'Maintenance follow-up questions',
+    gather_complaint:'Complaint follow-up questions',
+    gather_payment:'Payment follow-up questions',
+    gather_scheduling:'Scheduling follow-up questions',
+    custom_rules:'Additional custom rules',
+  };
+  document.getElementById('config-fields').innerHTML = Object.entries(labels).map(([k,label])=>`
+    <div style="margin-bottom:14px;">
+      <label class="field-label">${label}</label>
+      <textarea id="cfg-${k}" rows="3">${escHtml(config[k]||'')}</textarea>
+    </div>`).join('');
+}
+
+async function saveConfig() {
+  const keys = ['agent_persona','urgency_rules','gather_maintenance','gather_complaint','gather_payment','gather_scheduling','custom_rules'];
+  const updates = {};
+  keys.forEach(k => { const el = document.getElementById('cfg-'+k); if(el) updates[k]=el.value; });
+  await api('/api/config', {method:'POST', body:JSON.stringify(updates)});
+  alert('✅ Agent instructions saved!');
+}
+
+async function addTenant() {
+  const data = {
+    id: document.getElementById('nt-id').value.trim(),
+    name: document.getElementById('nt-name').value.trim(),
+    short_name: document.getElementById('nt-short').value.trim(),
+    phone: document.getElementById('nt-phone').value.trim(),
+    payment_method: document.getElementById('nt-payment').value.trim(),
+    rent: parseFloat(document.getElementById('nt-rent').value),
+    deposit: parseFloat(document.getElementById('nt-rent').value),
+    lease_start: document.getElementById('nt-start').value,
+    lease_end: document.getElementById('nt-end').value,
+    prorated_first: 0,
+    initials: document.getElementById('nt-name').value.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+  };
+  if (!data.id||!data.name||!data.phone||!data.rent) return alert('Fill in required fields');
+  await api('/api/tenants', {method:'POST', body:JSON.stringify(data)});
+  alert('✅ Tenant added!');
+  loadDashboard();
+}
+
+// ── HELPERS ───────────────────────────────────────
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
