@@ -186,6 +186,12 @@ app.post('/api/payments', auth, (req, res) => {
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
+app.patch('/api/payments/:id', auth, (req, res) => {
+  const { amount, type, month, note } = req.body;
+  db.prepare('UPDATE payments SET amount=?, type=?, month=?, note=? WHERE id=?').run(amount, type, month, note||'', req.params.id);
+  res.json({ ok: true });
+});
+
 app.delete('/api/payments/:id', auth, (req, res) => {
   db.prepare('DELETE FROM payments WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
