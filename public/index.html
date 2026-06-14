@@ -502,7 +502,7 @@ async function loadPayments() {
   if (!payments.length) { el.innerHTML = '<div class="empty">No payments logged yet.</div>'; return; }
 
   el.innerHTML = Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).map(([month, ps]) => {
-    const label = new Date(month+'-01').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const label = new Date(month+'-02').toLocaleDateString('en-US',{month:'long',year:'numeric'});
     const temiPaid = ps.filter(p=>p.tenant_id==='temi'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
     const chloePaid = ps.filter(p=>p.tenant_id==='chloe'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
     const temiRent = 1850, chloeRent = 1750;
