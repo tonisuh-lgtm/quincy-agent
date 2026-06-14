@@ -513,18 +513,41 @@ async function loadPayments() {
         <span class="muted">Temi ${temiPaid>=temiRent?'✓ paid':`$${(temiRent-temiPaid).toFixed(2)} due`} · Chloe ${chloePaid>=chloeRent?'✓ paid':`$${(chloeRent-chloePaid).toFixed(2)} due`}</span>
       </div>
       ${ps.map(p=>`
-      <div class="row between" style="padding:10px 0;border-bottom:0.5px solid var(--border);">
-        <div class="row" style="gap:10px;">
-          <div class="avatar" style="width:30px;height:30px;background:${p.color};font-size:10px;">${p.initials}</div>
-          <div>
-            <span style="font-weight:500;">$${p.amount.toFixed(2)}</span>
-            <span class="muted"> · ${p.type}</span>
-            ${p.note?`<div class="muted">${p.note}</div>`:''}
+      <div id="prow-${p.id}">
+        <div class="row between" style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+          <div class="row" style="gap:10px;">
+            <div class="avatar" style="width:30px;height:30px;background:${p.color};font-size:10px;">${p.initials}</div>
+            <div>
+              <span style="font-weight:500;">$${p.amount.toFixed(2)}</span>
+              <span class="muted"> · ${p.type} · ${p.month}</span>
+              ${p.note?`<div class="muted">${p.note}</div>`:''}
+            </div>
+          </div>
+          <div class="row" style="gap:8px;">
+            <span class="muted">${fmtTime(p.timestamp)}</span>
+            <button onclick="toggleEditPayment(${p.id})" style="font-size:11px;color:var(--text2);border:none;padding:4px;">✎</button>
+            <button onclick="deletePayment(${p.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;">✕</button>
           </div>
         </div>
-        <div class="row" style="gap:8px;">
-          <span class="muted">${fmtTime(p.timestamp)}</span>
-          <button onclick="deletePayment(${p.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;">✕</button>
+        <div id="pedit-${p.id}" style="display:none;padding:10px;background:var(--bg3);border-radius:8px;margin:4px 0 8px;">
+          <div class="input-group" style="margin-bottom:8px;">
+            <div><label class="field-label">Amount</label><input type="number" id="pe-amount-${p.id}" value="${p.amount}" /></div>
+            <div><label class="field-label">Type</label>
+              <select id="pe-type-${p.id}">
+                <option value="rent" ${p.type==='rent'?'selected':''}>Rent</option>
+                <option value="utilities" ${p.type==='utilities'?'selected':''}>Utilities</option>
+                <option value="deposit" ${p.type==='deposit'?'selected':''}>Deposit</option>
+                <option value="late_fee" ${p.type==='late_fee'?'selected':''}>Late fee</option>
+                <option value="other" ${p.type==='other'?'selected':''}>Other</option>
+              </select>
+            </div>
+            <div><label class="field-label">Month</label><input type="month" id="pe-month-${p.id}" value="${p.month}" /></div>
+            <div><label class="field-label">Note</label><input id="pe-note-${p.id}" value="${p.note||''}" /></div>
+          </div>
+          <div class="row" style="gap:8px;">
+            <button class="btn-primary" onclick="saveEditPayment(${p.id},'${p.tenant_id}')" style="font-size:12px;">Save</button>
+            <button onclick="toggleEditPayment(${p.id})" style="font-size:12px;">Cancel</button>
+          </div>
         </div>
       </div>`).join('')}
     </div>`;
@@ -553,6 +576,23 @@ async function notifyAllUtil(period) {
 async function deletePayment(id) {
   if (!confirm('Delete this payment?')) return;
   await api(`/api/payments/${id}`, {method:'DELETE'});
+  loadPayments();
+  loadDashboard();
+}
+
+function toggleEditPayment(id) {
+  const el = document.getElementById('pedit-'+id);
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+async function saveEditPayment(id, tenantId) {
+  const data = {
+    amount: parseFloat(document.getElementById('pe-amount-'+id).value),
+    type: document.getElementById('pe-type-'+id).value,
+    month: document.getElementById('pe-month-'+id).value,
+    note: document.getElementById('pe-note-'+id).value,
+  };
+  await api(`/api/payments/${id}`, {method:'PATCH', body:JSON.stringify(data)});
   loadPayments();
   loadDashboard();
 }
