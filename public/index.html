@@ -949,11 +949,11 @@ async function genBroadcast() {
   const context = document.getElementById('bc-content').value.trim();
   if (!context) return alert('Add some context about what you want to say');
   document.getElementById('bc-draft').style.display = 'block';
-  document.getElementById('bc-draft-text').value = 'Generating...';
+  document.getElementById('bc-draft-text').value = 'Drafting...';
   const target = document.getElementById('bc-target').value;
   const targetName = target === 'all' ? 'all tenants' : allTenants.find(t=>t.id===target)?.short_name || target;
-  const res = await callClaude([{role:'user', content:`Draft a professional SMS to ${targetName}. Context: ${context}. Keep under 5 sentences, professional and warm. Sign off as: — 9 Quincy Management`}], AGENT_SYSTEM);
-  document.getElementById('bc-draft-text').value = res;
+  const res = await api('/api/draft-message', {method:'POST', body:JSON.stringify({context, targetName})});
+  document.getElementById('bc-draft-text').value = res.draft || 'Error generating draft';
 }
 
 function previewDraft() {
