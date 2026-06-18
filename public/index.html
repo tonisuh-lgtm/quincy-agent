@@ -200,11 +200,70 @@
     <div class="row between" style="margin-bottom:16px;">
       <h2 style="margin:0;">Scheduling</h2>
     </div>
+
+    <!-- Service provider portals -->
+    <div style="margin-bottom:20px;">
+      <div class="section-title">Service provider portals</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="card" style="cursor:pointer;" onclick="openProviderPortal('mehmet')">
+          <div style="font-weight:500;margin-bottom:4px;">🪲 Mehmet</div>
+          <div class="muted">Pest control · (202) 389-7752</div>
+          <div id="mehmet-badge" style="display:none;margin-top:6px;"><span class="tag tag-new">new msg</span></div>
+        </div>
+        <div class="card" style="cursor:pointer;" onclick="openProviderPortal('stanley')">
+          <div style="font-weight:500;margin-bottom:4px;">🧹 Stanley</div>
+          <div class="muted">Cleaning · (253) 518-8749</div>
+          <div id="stanley-badge" style="display:none;margin-top:6px;"><span class="tag tag-new">new msg</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provider portal modal -->
+    <div id="provider-portal" style="display:none;" class="card">
+      <div class="row between" style="margin-bottom:12px;">
+        <span id="portal-title" style="font-weight:500;"></span>
+        <button onclick="closeProviderPortal()" style="font-size:12px;">Close</button>
+      </div>
+      <div id="portal-messages" style="max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:8px;"></div>
+      <textarea id="portal-input" placeholder="Type a message..." rows="2" style="margin-bottom:8px;"></textarea>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="sendProviderMessage()" style="font-size:13px;">Send</button>
+      </div>
+    </div>
+
+    <!-- Schedule buttons -->
+    <div class="section-title">Schedule a service</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
-      <button class="btn-primary" style="padding:14px;" onclick="startScheduling('cleaning')">🧹 Schedule Cleaning</button>
-      <button class="btn-primary" style="padding:14px;" onclick="startScheduling('pest_control')">🪲 Schedule Pest Control</button>
+      <button class="btn-primary" style="padding:14px;" onclick="prepareScheduling('cleaning')">🧹 Schedule Cleaning</button>
+      <button class="btn-primary" style="padding:14px;" onclick="prepareScheduling('pest_control')">🪲 Schedule Pest Control</button>
       <button style="padding:14px;" onclick="showThumbтack()">🔨 Thumbtack Draft</button>
     </div>
+
+    <!-- Scheduling preview/confirm -->
+    <div id="scheduling-preview" style="display:none;" class="card">
+      <p style="font-weight:500;margin-bottom:4px;">📋 Review before sending</p>
+      <p class="muted" style="margin-bottom:12px;font-size:12px;">Nothing has been sent yet. Review and confirm each message individually.</p>
+      <div id="preview-tenant-msg" style="margin-bottom:12px;">
+        <div class="section-title">Message to tenants</div>
+        <div id="preview-tenant-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:8px;"></div>
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" id="confirm-tenant-btn" onclick="confirmSendTenants()" style="font-size:12px;">✓ Send to all tenants</button>
+          <button onclick="document.getElementById('scheduling-preview').style.display='none'" style="font-size:12px;">Cancel</button>
+        </div>
+        <div id="tenant-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-top:6px;">✓ Sent to tenants</div>
+      </div>
+      <hr class="divider">
+      <div id="preview-provider-msg" style="margin-top:12px;">
+        <div class="section-title" id="preview-provider-label">Message to provider</div>
+        <div id="preview-provider-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:8px;"></div>
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" id="confirm-provider-btn" onclick="confirmSendProvider()" style="font-size:12px;">✓ Send to provider</button>
+          <button onclick="document.getElementById('scheduling-preview').style.display='none'" style="font-size:12px;">Cancel</button>
+        </div>
+        <div id="provider-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-top:6px;">✓ Sent to provider</div>
+      </div>
+    </div>
+
     <div id="thumbtack-section" style="display:none;" class="card">
       <p style="font-weight:500;margin-bottom:10px;">Generate Thumbtack job post</p>
       <textarea id="tt-issue" placeholder="Describe the issue (e.g. kitchen faucet leaking, need plumber)" style="margin-bottom:10px;"></textarea>
@@ -224,11 +283,10 @@
     </div>
     <div class="card">
       <div class="input-group">
-        <div><label class="field-label">Send to</label>
+        <div>
+          <label class="field-label">Send to</label>
           <select id="bc-target">
-            <option value="both">Both tenants</option>
-            <option value="temi">Temi only</option>
-            <option value="chloe">Chloe only</option>
+            <option value="all">All tenants</option>
           </select>
         </div>
         <div></div>
@@ -236,15 +294,27 @@
       <label class="field-label">Message</label>
       <textarea id="bc-content" placeholder="Type your message..." style="margin-bottom:10px;"></textarea>
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="sendBroadcast()">Send via agent</button>
+        <button class="btn-primary" onclick="previewBroadcast()">Preview & send</button>
         <button onclick="genBroadcast()">AI draft</button>
       </div>
     </div>
+
+    <!-- Broadcast preview -->
+    <div id="bc-preview" style="display:none;" class="card">
+      <p style="font-weight:500;margin-bottom:4px;">📋 Confirm before sending</p>
+      <div id="bc-preview-recipients" class="muted" style="margin-bottom:8px;font-size:12px;"></div>
+      <div id="bc-preview-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:12px;white-space:pre-wrap;"></div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="confirmBroadcast()">✓ Confirm & send</button>
+        <button onclick="document.getElementById('bc-preview').style.display='none'">Cancel</button>
+      </div>
+    </div>
+
     <div id="bc-draft" style="display:none;" class="card">
       <p class="muted" style="margin-bottom:8px;">AI draft — edit before sending:</p>
       <textarea id="bc-draft-text" rows="5" style="margin-bottom:10px;"></textarea>
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="sendDraft()">Send this</button>
+        <button class="btn-primary" onclick="previewDraft()">Preview & send</button>
         <button onclick="document.getElementById('bc-draft').style.display='none'">Discard</button>
       </div>
     </div>
@@ -282,6 +352,18 @@ let inboxFilter = 'all';
 let currentConversations = [];
 let utilCalcResult = null;
 
+const AGENT_SYSTEM = `You are a professional property management agent for 9 Quincy Pl NE #2, Washington DC 20002. Communicate professionally and warmly on behalf of the owner. Keep SMS responses concise. Sign off as: — 9 Quincy Management`;
+
+async function callClaude(messages, system) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 400, system, messages }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text || "";
+}
+
 // ── AUTH ──────────────────────────────────────────
 async function login() {
   const pwd = document.getElementById('pwd-input').value;
@@ -311,6 +393,7 @@ function initApp() {
   loadUtilities();
   loadScheduling();
   loadConfig();
+  loadTenants();
   const m = document.getElementById('pf-month');
   if (m) m.value = new Date().toISOString().slice(0,7);
   setInterval(() => { loadDashboard(); loadInbox(); }, 30000);
@@ -830,35 +913,173 @@ async function scheduleThumbтackPro() {
 }
 
 // ── BROADCAST ─────────────────────────────────────
-async function sendBroadcast() {
+// ── BROADCAST ─────────────────────────────────────
+let allTenants = [];
+
+async function loadTenants() {
+  allTenants = await api('/api/tenants');
+  const sel = document.getElementById('bc-target');
+  if (!sel) return;
+  sel.innerHTML = '<option value="all">All tenants</option>' +
+    allTenants.map(t => `<option value="${t.id}">${t.short_name} (${t.payment_method})</option>`).join('');
+}
+
+function previewBroadcast() {
   const content = document.getElementById('bc-content').value.trim();
   const target = document.getElementById('bc-target').value;
-  if (!content) return alert('Enter a message');
-  if (!confirm(`Send this message to ${target==='both'?'both tenants':target}?`)) return;
-  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id:target, content})});
-  document.getElementById('bc-content').value='';
+  if (!content) return alert('Enter a message first');
+  const recipients = target === 'all'
+    ? allTenants.map(t => t.short_name).join(', ')
+    : allTenants.find(t => t.id === target)?.short_name || target;
+  document.getElementById('bc-preview-recipients').textContent = `To: ${recipients}`;
+  document.getElementById('bc-preview-text').textContent = content;
+  document.getElementById('bc-preview').style.display = 'block';
+}
+
+async function confirmBroadcast() {
+  const content = document.getElementById('bc-content').value.trim();
+  const target = document.getElementById('bc-target').value;
+  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id: target, content})});
+  document.getElementById('bc-preview').style.display = 'none';
+  document.getElementById('bc-content').value = '';
   alert('✅ Sent!');
 }
 
 async function genBroadcast() {
-  const target = document.getElementById('bc-target').value;
   const context = document.getElementById('bc-content').value.trim();
-  if (!context) return alert('Add some context first about what you want to say');
-  document.getElementById('bc-draft').style.display='block';
-  document.getElementById('bc-draft-text').value='Generating...';
-  const res = await fetch('/api/broadcast', {method:'POST', headers:{'x-dashboard-token':TOKEN,'Content-Type':'application/json'}, body:JSON.stringify({tenant_id:'_draft', content:context})});
-  // For now just pre-fill — in a real setup this would call a draft endpoint
-  document.getElementById('bc-draft-text').value=context;
+  if (!context) return alert('Add some context about what you want to say');
+  document.getElementById('bc-draft').style.display = 'block';
+  document.getElementById('bc-draft-text').value = 'Generating...';
+  const target = document.getElementById('bc-target').value;
+  const targetName = target === 'all' ? 'all tenants' : allTenants.find(t=>t.id===target)?.short_name || target;
+  const res = await callClaude([{role:'user', content:`Draft a professional SMS to ${targetName}. Context: ${context}. Keep under 5 sentences, professional and warm. Sign off as: — 9 Quincy Management`}], AGENT_SYSTEM);
+  document.getElementById('bc-draft-text').value = res;
 }
 
-async function sendDraft() {
+function previewDraft() {
   const content = document.getElementById('bc-draft-text').value.trim();
   const target = document.getElementById('bc-target').value;
   if (!content) return;
-  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id:target, content})});
-  document.getElementById('bc-draft').style.display='none';
-  document.getElementById('bc-content').value='';
-  alert('✅ Sent!');
+  const recipients = target === 'all'
+    ? allTenants.map(t => t.short_name).join(', ')
+    : allTenants.find(t => t.id === target)?.short_name || target;
+  document.getElementById('bc-preview-recipients').textContent = `To: ${recipients}`;
+  document.getElementById('bc-preview-text').textContent = content;
+  document.getElementById('bc-content').value = content;
+  document.getElementById('bc-preview').style.display = 'block';
+  document.getElementById('bc-draft').style.display = 'none';
+}
+
+async function sendDraft() {
+  previewDraft();
+}
+
+async function sendBroadcast() {
+  previewBroadcast();
+}
+
+// ── SCHEDULING ────────────────────────────────────
+let currentSchedulingJob = null;
+let currentProviderKey = null;
+
+const PROVIDERS = {
+  cleaning: { name: 'Stanley', phone: '+12535188749', label: 'Cleaning' },
+  pest_control: { name: 'Mehmet', phone: '+12023897752', label: 'Pest Control' },
+};
+
+async function prepareScheduling(type) {
+  const provider = PROVIDERS[type];
+  const notes = prompt(`Optional notes for ${provider.label} (e.g. focus areas, special instructions):`)||'';
+
+  const tenantMsg = `Hi, we're scheduling ${provider.label.toLowerCase()} at the property. Could you please share 2-3 windows of availability over the next 1-2 weeks (e.g., "Mon June 23 morning")? We'll confirm once we coordinate. Thank you! — 9 Quincy Management`;
+  const providerMsg = `Hi ${provider.name}, this is 9 Quincy Pl NE #2. We'd like to schedule ${provider.label.toLowerCase()}. Are you available in the next 1-2 weeks? Please suggest some times. Thank you!`;
+
+  document.getElementById('preview-tenant-text').textContent = tenantMsg;
+  document.getElementById('preview-provider-text').textContent = providerMsg;
+  document.getElementById('preview-provider-label').textContent = `Message to ${provider.name} (${provider.label})`;
+  document.getElementById('confirm-tenant-btn').textContent = `✓ Send to all tenants`;
+  document.getElementById('tenant-sent-confirm').style.display = 'none';
+  document.getElementById('provider-sent-confirm').style.display = 'none';
+  document.getElementById('confirm-tenant-btn').disabled = false;
+  document.getElementById('confirm-provider-btn').disabled = false;
+
+  currentSchedulingJob = { type, notes, tenantMsg, providerMsg, provider };
+  document.getElementById('scheduling-preview').style.display = 'block';
+  document.getElementById('scheduling-preview').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function confirmSendTenants() {
+  if (!currentSchedulingJob) return;
+  const btn = document.getElementById('confirm-tenant-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  // Create job first
+  const res = await api('/api/scheduling/start-manual', {method:'POST', body:JSON.stringify({
+    type: currentSchedulingJob.type,
+    notes: currentSchedulingJob.notes,
+    tenantMsg: currentSchedulingJob.tenantMsg,
+  })});
+  currentSchedulingJob.jobId = res.jobId;
+
+  document.getElementById('tenant-sent-confirm').style.display = 'block';
+  btn.style.display = 'none';
+  loadScheduling();
+}
+
+async function confirmSendProvider() {
+  if (!currentSchedulingJob) return;
+  const btn = document.getElementById('confirm-provider-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  await api('/api/scheduling/notify-provider', {method:'POST', body:JSON.stringify({
+    providerPhone: currentSchedulingJob.provider.phone,
+    providerName: currentSchedulingJob.provider.name,
+    message: currentSchedulingJob.providerMsg,
+    jobId: currentSchedulingJob.jobId || null,
+  })});
+
+  document.getElementById('provider-sent-confirm').style.display = 'block';
+  btn.style.display = 'none';
+}
+
+// ── PROVIDER PORTAL ───────────────────────────────
+let currentProviderPhone = null;
+
+function openProviderPortal(key) {
+  const providers = { mehmet: { name: 'Mehmet (Pest Control)', phone: '+12023897752' }, stanley: { name: 'Stanley (Cleaning)', phone: '+12535188749' } };
+  const p = providers[key];
+  currentProviderPhone = p.phone;
+  document.getElementById('portal-title').textContent = p.name;
+  document.getElementById('provider-portal').style.display = 'block';
+  loadProviderMessages(p.phone);
+  document.getElementById('provider-portal').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeProviderPortal() {
+  document.getElementById('provider-portal').style.display = 'none';
+  currentProviderPhone = null;
+}
+
+async function loadProviderMessages(phone) {
+  const msgs = await api(`/api/provider-messages?phone=${encodeURIComponent(phone)}`);
+  const el = document.getElementById('portal-messages');
+  if (!msgs || !msgs.length) { el.innerHTML = '<div class="muted" style="text-align:center;">No messages yet</div>'; return; }
+  el.innerHTML = msgs.map(m => `
+    <div>
+      <div class="${m.direction==='inbound'?'inbound-msg':'outbound-msg'}">${escHtml(m.content)}</div>
+      <div class="msg-time" style="${m.direction==='outbound'?'text-align:right;':''}">${fmtTime(m.timestamp)}</div>
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendProviderMessage() {
+  const content = document.getElementById('portal-input').value.trim();
+  if (!content || !currentProviderPhone) return;
+  await api('/api/provider-send', {method:'POST', body:JSON.stringify({phone: currentProviderPhone, content})});
+  document.getElementById('portal-input').value = '';
+  loadProviderMessages(currentProviderPhone);
 }
 
 // ── SETTINGS ──────────────────────────────────────
