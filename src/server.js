@@ -362,6 +362,13 @@ app.post('/api/scheduling/notify-provider', auth, async (req, res) => {
 
 // ─── SCHEDULING ───────────────────────────────────────────────
 
+app.delete('/api/scheduling/:id', auth, (req, res) => {
+  db.prepare('DELETE FROM scheduling_jobs WHERE id = ?').run(req.params.id);
+  db.prepare('DELETE FROM scheduling_availability WHERE job_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM scheduled_reminders WHERE job_id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/scheduling', auth, (req, res) => {
   const jobs = db.prepare(`SELECT * FROM scheduling_jobs ORDER BY created_at DESC LIMIT 20`).all();
   const jobsWithAvailability = jobs.map(j => ({

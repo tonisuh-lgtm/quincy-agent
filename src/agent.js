@@ -9,6 +9,17 @@ function getConfig() {
   return rows.reduce((acc, r) => { acc[r.key] = r.value; return acc; }, {});
 }
 
+// Build dynamic tenant context from database
+function getTenantContext() {
+  const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
+  return tenants.map(t => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const paid = db.prepare(`SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE tenant_id = ? AND month = ? AND type = 'rent'`).get(t.id, currentMonth).total;
+    const balance = Math.max(0, t.rent - paid);
+    return `- ${t.name} ("${t.short_name}"): $${t.rent}/month, lease ${t.lease_start} to ${t.lease_end}, pays via ${t.payment_method}, phone ${t.phone}. Current month paid: $${paid.toFixed(2)}, balance due: $${balance.toFixed(2)}.`;
+  }).join('\n');
+}
+
 // Classify message urgency and category
 async function classifyMessage(content, tenantName) {
   const config = getConfig();
@@ -44,6 +55,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 // Generate agent response based on conversation history
 async function generateResponse(tenant, conversationHistory, newMessage, classification) {
   const config = getConfig();
+  const tenantContext = getTenantContext();
 
   const responseTimeMap = {
     emergency: 'We are treating this as an emergency and escalating immediately. You will hear from us within the hour.',
@@ -69,6 +81,9 @@ async function generateResponse(tenant, conversationHistory, newMessage, classif
   const systemPrompt = `${config.agent_persona}
 
 ${config.custom_rules}
+
+Current tenants:
+${tenantContext}
 
 Current message classification:
 - Urgency: ${classification.urgency}
