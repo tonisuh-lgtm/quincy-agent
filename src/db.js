@@ -119,6 +119,24 @@ db.exec(`
     FOREIGN KEY (job_id) REFERENCES scheduling_jobs(id)
   );
 
+  CREATE TABLE IF NOT EXISTS provider_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_phone TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    content TEXT NOT NULL,
+    timestamp TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS service_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    short_name TEXT NOT NULL,
+    phone TEXT UNIQUE NOT NULL,
+    service_type TEXT NOT NULL,
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS receipt_store (
     id INTEGER PRIMARY KEY,
     data TEXT NOT NULL,
@@ -168,12 +186,27 @@ const seedConfig = () => {
   defaults.forEach(([k, v]) => stmt.run(k, v));
 };
 
+const seedProviders = () => {
+  const existing = db.prepare('SELECT COUNT(*) as count FROM service_providers').get();
+  if (existing.count > 0) return;
+
+  db.prepare(`INSERT OR IGNORE INTO service_providers (name, short_name, phone, service_type) VALUES (?, ?, ?, ?)`).run(
+    'Mehmet', 'Mehmet', '+12023897752', 'pest_control'
+  );
+  db.prepare(`INSERT OR IGNORE INTO service_providers (name, short_name, phone, service_type) VALUES (?, ?, ?, ?)`).run(
+    'Stanley / Dazzling Cleaning', 'Stanley', '+12535188749', 'cleaning'
+  );
+};
+
 seedTenants();
 seedConfig();
+seedProviders();
 
 // Migrations — add new columns to existing databases
 try { db.exec(`ALTER TABLE utility_bills ADD COLUMN receipt_url TEXT`); } catch(e) {}
 try { db.exec(`CREATE TABLE IF NOT EXISTS receipt_store (id INTEGER PRIMARY KEY, data TEXT NOT NULL, name TEXT, mime_type TEXT, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
+try { db.exec(`CREATE TABLE IF NOT EXISTS provider_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_phone TEXT NOT NULL, direction TEXT NOT NULL, content TEXT NOT NULL, timestamp TEXT DEFAULT (datetime('now')))`); } catch(e) {}
+try { db.exec(`CREATE TABLE IF NOT EXISTS service_providers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, short_name TEXT NOT NULL, phone TEXT UNIQUE NOT NULL, service_type TEXT NOT NULL, active INTEGER DEFAULT 1, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
 
 console.log('Database ready');
 module.exports = db;

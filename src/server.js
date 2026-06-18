@@ -46,6 +46,25 @@ app.post('/webhook/sms', async (req, res) => {
       return res.status(200).send('<Response></Response>');
     }
 
+    // Check if this is a known service provider
+    const provider = db.prepare('SELECT * FROM service_providers WHERE phone = ? AND active = 1').get(from);
+    if (provider) {
+      // Save inbound message to provider_messages
+      db.prepare('INSERT INTO provider_messages (provider_phone, direction, content) VALUES (?, ?, ?)').run(from, 'inbound', body);
+
+      const activeJob = db.prepare(`SELECT * FROM scheduling_jobs WHERE provider_phone = ? AND status IN ('confirmed','collecting_availability') ORDER BY created_at DESC LIMIT 1`).get(provider.phone);
+      const jobRef = activeJob ? ` (Job #${activeJob.id} — ${activeJob.confirmed_slot || 'pending'})` : '';
+      await alertOwner(`📞 Message from ${provider.name}${jobRef}:\n"${body}"`);
+
+      // Auto-confirm if they say yes/confirm
+      const confirmWords = ['confirm', 'confirmed', 'yes', 'ok', 'works', 'see you', 'will be there', 'got it'];
+      if (activeJob && confirmWords.some(w => body.toLowerCase().includes(w))) {
+        db.prepare(`UPDATE scheduling_jobs SET provider_confirmed = 1, updated_at = datetime('now') WHERE id = ?`).run(activeJob.id);
+        await alertOwner(`✅ ${provider.name} confirmed for ${activeJob.confirmed_slot}`);
+      }
+      return res.status(200).send('<Response></Response>');
+    }
+
     // Check if this is a known tenant
     const tenant = db.prepare('SELECT * FROM tenants WHERE phone = ? AND active = 1').get(from);
 
@@ -283,6 +302,48 @@ app.post('/api/utilities/notify-all', auth, async (req, res) => {
   }
 
   db.prepare('UPDATE utility_bills SET notified = 1 WHERE period = ?').run(period);
+  res.json({ ok: true });
+});
+
+// ─── PROVIDER MESSAGES ───────────────────────────────────────
+
+app.get('/api/provider-messages', auth, (req, res) => {
+  const { phone } = req.query;
+  const msgs = db.prepare('SELECT * FROM provider_messages WHERE provider_phone = ? ORDER BY timestamp ASC').all(phone);
+  res.json(msgs);
+});
+
+app.post('/api/provider-send', auth, async (req, res) => {
+  const { phone, content } = req.body;
+  await sendSMS(phone, content);
+  db.prepare('INSERT INTO provider_messages (provider_phone, direction, content) VALUES (?, ?, ?)').run(phone, 'outbound', content);
+  res.json({ ok: true });
+});
+
+// Manual scheduling start (with pre-written messages)
+app.post('/api/scheduling/start-manual', auth, async (req, res) => {
+  const { type, notes, tenantMsg } = req.body;
+  const provider = { cleaning: { name: 'Stanley', phone: '+12535188749' }, pest_control: { name: 'Mehmet', phone: '+12023897752' } }[type];
+
+  const jobId = db.prepare(`INSERT INTO scheduling_jobs (type, provider_name, provider_phone, status, notes) VALUES (?, ?, ?, 'collecting_availability', ?)`).run(type, provider.name, provider.phone, notes || '').lastInsertRowid;
+
+  const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
+  for (const t of tenants) {
+    await sendSMS(t.phone, tenantMsg);
+    db.prepare(`INSERT INTO conversations (tenant_id, direction, content, category, agent_classified) VALUES (?, 'outbound', ?, 'scheduling', 1)`).run(t.id, tenantMsg);
+    db.prepare(`INSERT INTO scheduling_availability (job_id, party, party_name, availability_text, status) VALUES (?, 'tenant', ?, 'pending', 'waiting')`).run(jobId, t.short_name);
+  }
+
+  await alertOwner(`📅 ${type === 'cleaning' ? 'Cleaning' : 'Pest Control'} scheduling started. Waiting for tenant availability. Job #${jobId}`);
+  res.json({ ok: true, jobId });
+});
+
+// Notify provider manually
+app.post('/api/scheduling/notify-provider', auth, async (req, res) => {
+  const { providerPhone, providerName, message, jobId } = req.body;
+  await sendSMS(providerPhone, message);
+  db.prepare('INSERT INTO provider_messages (provider_phone, direction, content) VALUES (?, ?, ?)').run(providerPhone, 'outbound', message);
+  if (jobId) db.prepare('UPDATE scheduling_jobs SET provider_notified = 1 WHERE id = ?').run(jobId);
   res.json({ ok: true });
 });
 
