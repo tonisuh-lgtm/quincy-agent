@@ -305,6 +305,19 @@ app.post('/api/utilities/notify-all', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// AI draft message
+app.post('/api/draft-message', auth, async (req, res) => {
+  const { context, targetName } = req.body;
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 400,
+    messages: [{ role: 'user', content: `Draft a professional SMS to ${targetName} for a property manager. Context: ${context}. Keep under 5 sentences, warm and professional. Sign off as: — 9 Quincy Management. Output only the message text.` }]
+  });
+  res.json({ draft: response.content[0].text.trim() });
+});
+
 // ─── PROVIDER MESSAGES ───────────────────────────────────────
 
 app.get('/api/provider-messages', auth, (req, res) => {
