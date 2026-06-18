@@ -808,46 +808,58 @@ async function loadScheduling() {
   if (!jobs.length) { el.innerHTML='<div class="empty">No scheduled services yet.</div>'; return; }
 
   const statusLabels = {
-    collecting_availability:'Collecting availability',
+    collecting_availability:'Collecting availability — waiting for tenants',
     awaiting_owner_approval:'Awaiting your approval',
     confirmed:'Confirmed ✓',
     completed:'Completed',
     cancelled:'Cancelled',
   };
 
-  el.innerHTML = jobs.map(j=>`
-  <div class="card">
+  const typeLabels = { cleaning:'🧹 Cleaning', pest_control:'🪲 Pest Control', thumbtack:'🔨' };
+
+  el.innerHTML = `<div class="section-title" style="margin-bottom:12px;">Active & recent jobs</div>` + jobs.map(j=>`
+  <div class="card" style="margin-bottom:12px;">
     <div class="row between" style="margin-bottom:10px;">
       <div>
-        <span style="font-weight:500;">${j.type==='cleaning'?'🧹 Cleaning':j.type==='pest_control'?'🪲 Pest Control':'🔨 '+j.provider_name}</span>
-        <span class="tag" style="margin-left:8px;background:var(--bg3);color:var(--text2);">${statusLabels[j.status]||j.status}</span>
+        <span style="font-weight:500;">${typeLabels[j.type]||'🔧'} ${j.type==='thumbtack'?j.provider_name:j.type==='cleaning'?'Cleaning':'Pest Control'}</span>
+        <span class="tag" style="margin-left:8px;background:var(--bg3);color:var(--text2);font-size:10px;">${statusLabels[j.status]||j.status}</span>
       </div>
-      <span class="muted">Job #${j.id}</span>
+      <div class="row" style="gap:8px;">
+        <span class="muted" style="font-size:11px;">Job #${j.id}</span>
+        <button onclick="deleteJob(${j.id})" style="font-size:11px;color:var(--red);border-color:rgba(226,75,74,0.3);padding:4px 8px;">Delete</button>
+      </div>
     </div>
-    ${j.confirmed_slot?`<div style="color:var(--green);margin-bottom:8px;">📅 ${j.confirmed_slot}</div>`:''}
+    ${j.confirmed_slot?`<div style="color:var(--green);margin-bottom:8px;font-size:13px;">📅 Confirmed: ${j.confirmed_slot}</div>`:''}
     ${j.availability&&j.availability.length?`
       <div style="margin-bottom:10px;">
-        <div class="section-title">Availability received</div>
-        ${j.availability.map(a=>`<div class="muted">• <strong style="color:var(--text);">${a.party_name}:</strong> ${a.availability_text==='pending'?'Waiting..':a.availability_text}</div>`).join('')}
+        <div class="section-title">Tenant availability</div>
+        ${j.availability.map(a=>`<div class="muted" style="font-size:12px;">• <strong style="color:var(--text);">${a.party_name}:</strong> ${a.status==='waiting'?'⏳ Waiting for response':a.availability_text}</div>`).join('')}
       </div>`:''}
     ${j.status==='awaiting_owner_approval'&&j.proposed_slots&&j.proposed_slots.length?`
       <div>
         <div class="section-title">Suggested times — tap to confirm</div>
         ${j.proposed_slots.map(s=>`
           <div class="slot-option" onclick="approveSlot(${j.id},'${s.slot}')">
-            <div style="font-weight:500;">${s.slot}</div>
-            <div class="muted">${s.reasoning}</div>
+            <div style="font-weight:500;font-size:13px;">${s.slot}</div>
+            <div class="muted" style="font-size:12px;">${s.reasoning}</div>
           </div>`).join('')}
       </div>`:''}
     ${j.type==='cleaning'&&j.status==='confirmed'&&!j.provider_confirmed?`
-      <div style="margin-top:10px;">
-        <p class="muted" style="margin-bottom:6px;">Book at <a href="https://dazzlingcleaners.com" target="_blank" style="color:var(--gold);">dazzlingcleaners.com</a> for ${j.confirmed_slot}, then paste confirmation:</p>
+      <div style="margin-top:10px;background:var(--bg3);border-radius:8px;padding:12px;">
+        <p class="muted" style="margin-bottom:8px;font-size:12px;">📌 Book at <a href="https://dazzlingcleaners.com" target="_blank" style="color:var(--gold);">dazzlingcleaners.com</a> for <strong>${j.confirmed_slot}</strong>, then paste confirmation below:</p>
         <div class="row" style="gap:8px;">
-          <input id="dz-confirm-${j.id}" placeholder="Confirmation # or details" />
-          <button onclick="confirmDazzling(${j.id})" class="btn-primary" style="font-size:12px;">Confirm</button>
+          <input id="dz-confirm-${j.id}" placeholder="Confirmation # or details" style="flex:1;" />
+          <button onclick="confirmDazzling(${j.id})" class="btn-primary" style="font-size:12px;white-space:nowrap;">Log confirmation</button>
         </div>
       </div>`:''}
+    ${j.provider_confirmed?`<div style="color:var(--green);font-size:12px;margin-top:8px;">✓ Provider confirmed</div>`:''}
   </div>`).join('');
+}
+
+async function deleteJob(id) {
+  if (!confirm('Delete this scheduling job? This cannot be undone.')) return;
+  await api(`/api/scheduling/${id}`, {method:'DELETE'});
+  loadScheduling();
 }
 
 async function approveSlot(jobId, slot) {
