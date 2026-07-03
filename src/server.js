@@ -17,7 +17,7 @@ const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || 'quincy2026';
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
 // Simple auth middleware for API routes
 function auth(req, res, next) {
