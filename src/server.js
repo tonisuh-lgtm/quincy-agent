@@ -470,9 +470,19 @@ cron.schedule('0 9 * * *', async () => {
   await sendDayBeforeReminders();
 });
 
-// Serve dashboard
-app.get('*', (req, res) => {
+// Public landing page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/landing.html'));
+});
+
+// Dashboard app
+app.get('/app', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// Catch-all
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/landing.html'));
 });
 
 app.listen(PORT, () => {
