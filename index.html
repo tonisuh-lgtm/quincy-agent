@@ -703,6 +703,8 @@ async function loadUtilities() {
   summaryEl.innerHTML = Object.entries(byPeriod).sort((a,b)=>b[0].localeCompare(a[0])).map(([period,pbills]) => {
     const totalShare = pbills.reduce((s,b)=>s+b.tenant_share,0);
     const allNotified = pbills.every(b=>b.notified);
+    const waterBill = pbills.find(b=>b.type==='water');
+    const downstairsShare = waterBill ? parseFloat((waterBill.total * 2 / 5).toFixed(2)) : 0;
     return `
     <div class="card" style="margin-bottom:16px;">
       <div class="row between" style="margin-bottom:12px;">
@@ -721,6 +723,11 @@ async function loadUtilities() {
         </tr>`).join('')}
         <tr><td colspan="2" style="padding:8px 0;font-weight:500;">Total per tenant</td><td style="padding:8px 0;text-align:right;font-weight:500;color:var(--gold);">$${totalShare.toFixed(2)}</td><td></td></tr>
       </table>
+      ${downstairsShare>0?`
+      <div style="margin-top:10px;background:var(--bg3);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:2px;">Downstairs neighbors owe (2/5 of water)</div>
+        <div style="font-size:15px;font-weight:500;color:var(--amber);">$${downstairsShare.toFixed(2)}</div>
+      </div>`:''}
       ${!allNotified
         ?`<button onclick="notifyAllUtil('${period}')" class="btn-primary" style="margin-top:12px;font-size:12px;width:100%;">Send combined notice to all tenants</button>`
         :`<div style="color:var(--green);font-size:12px;margin-top:10px;">✓ Tenants notified</div>`}
