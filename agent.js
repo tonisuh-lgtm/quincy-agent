@@ -3,47 +3,38 @@ const db = require('./db');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Get all agent config as an object
 function getConfig() {
   const rows = db.prepare('SELECT key, value FROM agent_config').all();
   return rows.reduce((acc, r) => { acc[r.key] = r.value; return acc; }, {});
 }
 
-// Classify message urgency and category
+function getTenantContext() {
+  const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
+  return tenants.map(t => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const paid = db.prepare(`SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE tenant_id = ? AND month = ? AND type = 'rent'`).get(t.id, currentMonth).total;
+    const balance = Math.max(0, t.rent - paid);
+    return `- ${t.name} ("${t.short_name}"): $${t.rent}/month, lease ${t.lease_start} to ${t.lease_end}, pays via ${t.payment_method}. Current month paid: $${paid.toFixed(2)}, balance due: $${balance.toFixed(2)}.`;
+  }).join('\n');
+}
+
 async function classifyMessage(content, tenantName) {
   const config = getConfig();
   const prompt = `You are classifying a tenant message for a property manager.
-
 Tenant: ${tenantName}
 Message: "${content}"
+Urgency rules: ${config.urgency_rules}
+Respond with ONLY a JSON object (no markdown):
+{"urgency":"emergency"|"urgent"|"routine","category":"maintenance"|"complaint"|"payment"|"move_out"|"general","summary":"one sentence summary","needs_info":true|false}`;
 
-Urgency rules:
-${config.urgency_rules}
-
-Respond with ONLY a JSON object (no markdown, no explanation):
-{
-  "urgency": "emergency" | "urgent" | "routine",
-  "category": "maintenance" | "complaint" | "payment" | "move_out" | "general",
-  "summary": "one sentence summary of the issue",
-  "needs_info": true | false
-}`;
-
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
-  try {
-    return JSON.parse(res.content[0].text.trim());
-  } catch {
-    return { urgency: 'routine', category: 'general', summary: content.slice(0, 100), needs_info: false };
-  }
+  const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 200, messages: [{ role: 'user', content: prompt }] });
+  try { return JSON.parse(res.content[0].text.trim()); }
+  catch { return { urgency: 'routine', category: 'general', summary: content.slice(0, 100), needs_info: false }; }
 }
 
-// Generate agent response based on conversation history
 async function generateResponse(tenant, conversationHistory, newMessage, classification) {
   const config = getConfig();
+  const tenantContext = getTenantContext();
 
   const responseTimeMap = {
     emergency: 'We are treating this as an emergency and escalating immediately. You will hear from us within the hour.',
@@ -59,70 +50,45 @@ async function generateResponse(tenant, conversationHistory, newMessage, classif
     move_out: 'Ask for their intended move-out date and reason. Remind them of the 40-day written notice requirement per their lease.'
   };
 
-  const history = conversationHistory.map(m => ({
-    role: m.direction === 'inbound' ? 'user' : 'assistant',
-    content: m.content
-  }));
-
+  const history = conversationHistory.map(m => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: m.content }));
   history.push({ role: 'user', content: newMessage });
 
   const systemPrompt = `${config.agent_persona}
 
 ${config.custom_rules}
 
+Current tenants:
+${tenantContext}
+
 Current message classification:
 - Urgency: ${classification.urgency}
 - Category: ${classification.category}
-- Response time to communicate: ${responseTimeMap[classification.urgency]}
+- Response time: ${responseTimeMap[classification.urgency]}
 
 ${gatheringInstructions[classification.category] || ''}
 
-Instructions for this response:
-1. If this is the FIRST message in the conversation: acknowledge the message, state the response time, and ask the FIRST most important clarifying question only (not all at once).
-2. If this is a FOLLOW-UP: thank them for the info, acknowledge what they said, ask the next most important question if still needed, or confirm you have enough and will escalate to the owner.
-3. For EMERGENCIES: skip information gathering, tell them help is coming, give emergency contacts if applicable (fire: 911, gas: Washington Gas 1-844-927-4427).
-4. Keep each SMS under 300 characters. If longer, it will be split automatically.
-5. Be warm, professional, never dismissive. Never promise what the owner will do.
-6. Sign off as: "— 9 Quincy Management"`;
+Instructions:
+1. First message: acknowledge, state response time, ask ONE clarifying question only.
+2. Follow-up: thank them, acknowledge, ask next question or confirm enough info gathered.
+3. Emergency: skip gathering, give immediate help and emergency contacts (fire/gas: 911, Washington Gas: 1-844-927-4427).
+4. Keep under 300 characters per SMS. Split naturally if longer.
+5. Never promise resolutions. Never discuss other tenants. Never reveal owner details.
+6. Sign off as: — 9 Quincy Management`;
 
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 400,
-    system: systemPrompt,
-    messages: history
-  });
-
+  const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 400, system: systemPrompt, messages: history });
   return res.content[0].text.trim();
 }
 
-// Check if conversation has enough info to summarize for owner
 async function shouldEscalate(conversationHistory, category) {
   if (conversationHistory.length < 2) return false;
-  if (category === 'general' && conversationHistory.length >= 2) return true;
-
   const minExchanges = { maintenance: 3, complaint: 3, payment: 2, move_out: 2, general: 1 };
   return conversationHistory.length >= (minExchanges[category] || 2) * 2;
 }
 
-// Generate a summary for the owner
 async function generateOwnerSummary(tenant, conversationHistory, classification) {
-  const history = conversationHistory.map(m =>
-    `${m.direction === 'inbound' ? tenant.short_name : 'Agent'}: ${m.content}`
-  ).join('\n');
-
-  const prompt = `Summarize this tenant conversation for the landlord in 3-5 bullet points. Be concise and factual. Include: issue, urgency, key details gathered, recommended next action.
-
-Conversation:
-${history}
-
-Respond with plain text bullet points only (use • symbol). No headers.`;
-
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    messages: [{ role: 'user', content: prompt }]
-  });
-
+  const history = conversationHistory.map(m => `${m.direction === 'inbound' ? tenant.short_name : 'Agent'}: ${m.content}`).join('\n');
+  const prompt = `Summarize this tenant conversation for the landlord in 3-5 bullet points. Be concise and factual. Include: issue, urgency, key details, recommended next action.\n\nConversation:\n${history}\n\nRespond with plain text bullet points only (use • symbol). No headers.`;
+  const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] });
   return res.content[0].text.trim();
 }
 
