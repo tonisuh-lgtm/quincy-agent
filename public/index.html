@@ -132,6 +132,7 @@
       <p class="muted" style="margin-bottom:2px;">9 Quincy Pl NE #2 · Washington DC · Eastring LLC</p>
       <h2 style="margin:0;font-size:20px;" id="dash-heading">Overview</h2>
     </div>
+    <div id="send-policy"></div>
     <div id="dash-todo"></div>
     <div class="metric-grid" id="dash-metrics"></div>
     <div id="dash-tenants"></div>
@@ -610,6 +611,7 @@ function initApp() {
   loadIncidents();
   loadMoveouts();
   loadLog();
+  loadSendPolicy();
   const m = document.getElementById('pf-month');
   if (m) m.value = new Date().toISOString().slice(0,7);
   setInterval(() => { loadDashboard(); loadInbox(); loadPreviews(); }, 30000);
@@ -923,6 +925,41 @@ function renderTodo(d) {
   </div>`;
 }
 
+// Show plainly what can send on its own and what waits for confirmation
+async function loadSendPolicy() {
+  if (!TOKEN) return;
+  const p = await api('/api/send-policy');
+  const el = document.getElementById('send-policy');
+  if (!el || !p || !p.ok) return;
+
+  el.innerHTML = `
+  <div class="card" style="border-left:3px solid ${p.requireConfirmation?'#97C459':'var(--red)'};">
+    <div class="row between" style="margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">Sending safety</div>
+      <span style="font-size:12px;color:${p.requireConfirmation?'#97C459':'var(--red)'};font-weight:600;">
+        ${p.requireConfirmation?'Confirmation required':'OFF — messages send immediately'}
+      </span>
+    </div>
+    ${p.requireConfirmation ? `
+      <p class="muted" style="margin-bottom:8px;">Nothing goes to a tenant unless you approve it in Previews. The only exceptions are replies to a tenant who texted first.</p>
+      <div style="font-size:12px;margin-bottom:6px;"><strong style="color:var(--text);">Waits for you:</strong> <span class="muted">${p.waitsForYou.join(' · ')}</span></div>
+      <div style="font-size:12px;"><strong style="color:var(--text);">Replies on its own:</strong> <span class="muted">${p.autoSends.join(' · ')}</span></div>
+    ` : `
+      <p style="color:var(--red);font-size:12px;margin-bottom:8px;">Warning: rent reminders, late fees, utility notices, and broadcasts will send to tenants without asking you first.</p>
+    `}
+    <button onclick="toggleConfirmation(${p.requireConfirmation})" style="font-size:11px;margin-top:10px;">
+      ${p.requireConfirmation?'Turn off confirmation':'Turn confirmation back on'}
+    </button>
+  </div>`;
+}
+
+async function toggleConfirmation(currentlyOn) {
+  if (currentlyOn && !confirm('Turn OFF confirmation?\n\nRent reminders, late fee notices, utility notices, and broadcasts would then send to tenants automatically without asking you.\n\nMost landlords should leave this on.')) return;
+  await api('/api/config',{method:'POST',body:JSON.stringify({require_confirmation: currentlyOn?'0':'1'})});
+  loadSendPolicy();
+  toast(currentlyOn?'Confirmation turned OFF':'Confirmation required — nothing sends without you');
+}
+
 // ── DASHBOARD ─────────────────────────────────────
 async function loadDashboard() {
   if (!TOKEN) return;
@@ -937,6 +974,7 @@ async function loadDashboard() {
   previewBadge.textContent = d.pendingPreviews;
   previewBadge.style.display = d.pendingPreviews > 0 ? 'inline' : 'none';
 
+  loadSendPolicy();
   renderTodo(d);
 
   document.getElementById('dash-metrics').innerHTML = `
@@ -1750,7 +1788,7 @@ async function confirmBroadcast() {
 
   document.getElementById('bc-preview').style.display='none';
   document.getElementById('bc-content').value='';
-  toast('Preview sent to your phone. Confirm it in the Previews tab.');
+  toast('Queued. Nothing sends until you confirm it in Previews.');
   loadPreviews(); loadDashboard();
 }
 
