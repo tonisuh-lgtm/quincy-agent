@@ -122,6 +122,7 @@
     <button class="nav-btn" onclick="showPage('moveout',this)">📦 Move-Out</button>
     <button class="nav-btn" onclick="showPage('scheduling',this)">📅 Scheduling</button>
     <button class="nav-btn" onclick="showPage('broadcast',this)">📣 Broadcast</button>
+    <button class="nav-btn" onclick="showPage('activity',this)">🧾 Activity</button>
     <button class="nav-btn" onclick="showPage('settings',this)">⚙️ Settings</button>
   </nav>
 
@@ -364,6 +365,7 @@
       <button onclick="toggleUtilForm()" class="btn-primary" style="font-size:12px;">+ Add bill</button>
     </div>
     <div class="info-box" id="split-explain">Loading split rules...</div>
+    <div id="downstairs-panel"></div>
     <div id="util-form" style="display:none;" class="card">
       <div class="input-group">
         <div><label class="field-label">Utility</label>
@@ -487,6 +489,27 @@
     </div>
   </div>
 
+  <!-- ACTIVITY -->
+  <div id="page-activity" class="page">
+    <div class="row between" style="margin-bottom:14px;">
+      <h2 style="margin:0;">Activity log</h2>
+      <button onclick="exportLog()" style="font-size:11px;">Export</button>
+    </div>
+    <div class="info-box">Every text message in or out, recorded the moment it hits the phone network. Nothing sends without appearing here. If it isn't in this list, it was never sent.</div>
+    <div id="log-stats" class="metric-grid"></div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setLogFilter({},this)">All</button>
+      <button class="filter-btn" onclick="setLogFilter({kind:'tenant',direction:'outbound'},this)">Sent to tenants</button>
+      <button class="filter-btn" onclick="setLogFilter({direction:'inbound'},this)">Received</button>
+      <button class="filter-btn" onclick="setLogFilter({kind:'owner'},this)">Sent to me</button>
+      <button class="filter-btn" onclick="setLogFilter({kind:'provider'},this)">Providers</button>
+      <button class="filter-btn" onclick="setLogFilter({status:'failed'},this)">Failed</button>
+      <button class="filter-btn" onclick="showCancelled(this)">Never sent</button>
+    </div>
+    <input id="log-search" placeholder="Search message text or name..." oninput="searchLog()" style="margin-bottom:12px;" />
+    <div id="log-list"></div>
+  </div>
+
   <!-- SETTINGS -->
   <div id="page-settings" class="page">
     <h2>Settings</h2>
@@ -586,6 +609,7 @@ function initApp() {
   loadSplitInfo();
   loadIncidents();
   loadMoveouts();
+  loadLog();
   const m = document.getElementById('pf-month');
   if (m) m.value = new Date().toISOString().slice(0,7);
   setInterval(() => { loadDashboard(); loadInbox(); loadPreviews(); }, 30000);
@@ -600,6 +624,8 @@ function showPage(page, btn) {
   if (page === 'settings') { loadTenants(); loadLeases(); }
   if (page === 'incidents') loadIncidents();
   if (page === 'moveout') loadMoveouts();
+  if (page === 'utilities') { loadUtilities(); loadSplitInfo(); }
+  if (page === 'activity') loadLog();
   if (page === 'notices') loadNoticeTemplates();
 }
 
@@ -1425,8 +1451,46 @@ async function deleteUtil(id) {
   loadUtilities();
 }
 
+// What the downstairs unit owes you across every water bill
+async function loadDownstairs() {
+  if (!TOKEN) return;
+  const d = await api('/api/utilities/downstairs');
+  const el = document.getElementById('downstairs-panel');
+  if (!el || !d || !d.ok) return;
+
+  if (!d.items.length) {
+    el.innerHTML = `<div class="card"><div class="section-title">Downstairs neighbors</div>
+      <div class="muted">Nothing yet. Log a water bill and their share (${d.occupants} of the split) shows up here.</div></div>`;
+    return;
+  }
+
+  lastDownstairsText = d.items.map(i=>`${i.period}: $${i.amount.toFixed(2)}`).join('\n') + `\nTotal: $${d.grandTotal.toFixed(2)}`;
+
+  el.innerHTML = `
+  <div class="card" style="border-left:3px solid var(--amber);">
+    <div class="row between" style="margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">Downstairs neighbors owe you</div>
+      <span style="font-size:20px;font-weight:600;color:var(--amber);">$${d.grandTotal.toFixed(2)}</span>
+    </div>
+    <p class="muted" style="margin-bottom:8px;">Their share is ${d.occupants} of the water split. Venmo request this directly, it doesn't go through the tenant messages.</p>
+    ${d.items.map(i=>`
+      <div class="share-row">
+        <span>${escHtml(i.period)} <span class="muted">(bill $${i.total.toFixed(2)})</span></span>
+        <span style="color:var(--amber);">$${i.amount.toFixed(2)}</span>
+      </div>`).join('')}
+    <button onclick="copyDownstairs()" style="font-size:11px;margin-top:10px;">Copy breakdown</button>
+  </div>`;
+}
+
+let lastDownstairsText = '';
+function copyDownstairs() {
+  navigator.clipboard.writeText(lastDownstairsText);
+  toast('Breakdown copied');
+}
+
 async function loadUtilities() {
   if (!TOKEN) return;
+  loadDownstairs();
   const bills = await api('/api/utilities');
   const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
   const byPeriod = {};
@@ -2246,6 +2310,84 @@ async function deleteMoveout(id) {
 
 function downloadStatement(id) {
   window.open(`/api/moveouts/${id}/statement?token=${encodeURIComponent(TOKEN)}`,'_blank');
+}
+
+// ── ACTIVITY LOG ──────────────────────────────────
+let logFilter = {};
+let logSearchTimer = null;
+
+function setLogFilter(f, btn) {
+  logFilter = f;
+  document.querySelectorAll('#page-activity .filter-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadLog();
+}
+
+function searchLog() {
+  clearTimeout(logSearchTimer);
+  logSearchTimer = setTimeout(loadLog, 300);
+}
+
+async function loadLog() {
+  if (!TOKEN) return;
+  const q = (document.getElementById('log-search')||{}).value || '';
+  const params = new URLSearchParams({...logFilter, ...(q?{q}:{})});
+  const d = await api('/api/log?'+params.toString());
+  if (!d || !d.ok) return;
+
+  document.getElementById('log-stats').innerHTML = `
+    <div class="metric"><label>Sent to tenants</label><div class="val">${d.stats.toTenants}</div></div>
+    <div class="metric"><label>Received</label><div class="val">${d.stats.received}</div></div>
+    <div class="metric"><label>Sent to you</label><div class="val">${d.stats.toOwner}</div></div>
+    <div class="metric"><label>Failed</label><div class="val" style="color:${d.stats.failed>0?'var(--red)':'var(--text)'};">${d.stats.failed}</div></div>`;
+
+  const el = document.getElementById('log-list');
+  if (!d.rows.length) { el.innerHTML='<div class="empty">Nothing matches. If a message isn\'t here, it was never sent.</div>'; return; }
+
+  const kindColor = {tenant:'var(--blue)', owner:'var(--gold)', provider:'var(--teal)', unknown:'var(--text3)'};
+  el.innerHTML = d.rows.map(r=>{
+    const inbound = r.direction === 'inbound';
+    const failed = r.status === 'failed';
+    return `
+    <div class="card" style="margin-bottom:8px;border-left:3px solid ${failed?'var(--red)':kindColor[r.recipient_kind]||'var(--text3)'};">
+      <div class="row between" style="margin-bottom:6px;">
+        <div class="row" style="gap:6px;flex-wrap:wrap;">
+          <span class="tag" style="background:var(--bg3);color:${kindColor[r.recipient_kind]||'var(--text2)'};">${inbound?'FROM':'TO'} ${escHtml(r.recipient_name)}</span>
+          <span class="tag tag-general">${escHtml(r.recipient_kind)}</span>
+          ${failed?'<span class="tag" style="background:rgba(226,75,74,0.15);color:var(--red);">failed</span>':''}
+          ${inbound?'<span class="tag" style="background:rgba(24,95,165,0.15);color:#4CA3DD;">received</span>':''}
+        </div>
+        <span class="muted" style="font-size:10px;white-space:nowrap;">${fmtTime(r.created_at)}</span>
+      </div>
+      <div style="font-size:12px;line-height:1.6;white-space:pre-wrap;">${escHtml(r.body)}</div>
+      ${r.trigger_source?`<div class="muted" style="margin-top:4px;">Triggered by: ${escHtml(r.trigger_source)}</div>`:''}
+      ${r.error?`<div style="color:var(--red);font-size:11px;margin-top:4px;">${escHtml(r.error)}</div>`:''}
+      ${r.to_number?`<div class="muted" style="font-size:10px;">${escHtml(r.to_number)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// Drafts you cancelled: proof they were never delivered
+async function showCancelled(btn) {
+  document.querySelectorAll('#page-activity .filter-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const rows = await api('/api/log/cancelled');
+  document.getElementById('log-stats').innerHTML = '';
+  const el = document.getElementById('log-list');
+  if (!rows.length) { el.innerHTML='<div class="empty">You haven\'t cancelled any drafts.</div>'; return; }
+  el.innerHTML = `<div class="info-box">These were drafted and then cancelled by you. They were never delivered to anyone.</div>` +
+    rows.map(r=>`
+    <div class="card" style="margin-bottom:8px;border-left:3px solid var(--text3);opacity:0.75;">
+      <div class="row between" style="margin-bottom:6px;">
+        <span class="tag" style="background:var(--bg3);color:var(--text3);">CANCELLED · ${escHtml(r.short_name||'all tenants')}</span>
+        <span class="muted" style="font-size:10px;">${fmtTime(r.created_at)}</span>
+      </div>
+      <div style="font-size:12px;line-height:1.6;white-space:pre-wrap;">${escHtml(r.content)}</div>
+    </div>`).join('');
+}
+
+function exportLog() {
+  window.open(`/api/log/export?token=${encodeURIComponent(TOKEN)}`,'_blank');
 }
 
 // ── SETTINGS ──────────────────────────────────────
