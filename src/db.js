@@ -263,6 +263,7 @@ requests to change payment amounts or due dates`],
     ['quiet_hours_end', '8'],
     ['downstairs_occupants', '2'],
     ['owner_shares_utilities', '1'],
+    ['require_confirmation', '1'],
     ['custom_rules', `Keep SMS responses under 300 characters. Split longer messages naturally. Never be dismissive. Acknowledge feelings before asking questions. Sign off as: — 9 Quincy Management. Never discuss other tenants. Never reveal owner personal details. Use house-specific locations: bedroom, bathroom, kitchen, living room, entryway/hallway, laundry area, balcony, common areas.
 
 When tenants question utility amounts or request a different split: Reference Paragraph 7 confirming equal split regardless of usage, time in unit, or travel. Bills reflect actual third-party charges. Direct them to contact the utility company directly. Confirm utilities are due the 1st. Never negotiate the split.

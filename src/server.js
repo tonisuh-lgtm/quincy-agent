@@ -206,11 +206,43 @@ app.post('/api/broadcast', auth, async (req, res) => {
   const targets = tenant_id === 'all'
     ? db.prepare('SELECT * FROM tenants WHERE active = 1').all()
     : [db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id)].filter(Boolean);
+
+  // Safety switch: a broadcast is a voluntary message, so it waits for confirmation
+  if (getConfig().require_confirmation !== '0') {
+    for (const t of targets) {
+      db.prepare(`INSERT INTO message_previews (type, tenant_id, content, status) VALUES ('broadcast', ?, ?, 'pending')`).run(t.id, content);
+    }
+    await previewToOwner(content, targets.map(t => t.short_name).join(', ') || 'tenants', 'Broadcast');
+    return res.json({ ok: true, queued: targets.length, requiresConfirmation: true });
+  }
+
   for (const t of targets) {
     await sendSMS(t.phone, content, 'broadcast');
     db.prepare(`INSERT INTO conversations (tenant_id, direction, content, agent_classified) VALUES (?, 'outbound', ?, 0)`).run(t.id, content);
   }
   res.json({ ok: true, sent: targets.length });
+});
+
+// What sends on its own vs what waits for you
+app.get('/api/send-policy', auth, (req, res) => {
+  const required = getConfig().require_confirmation !== '0';
+  res.json({
+    ok: true,
+    requireConfirmation: required,
+    autoSends: [
+      'Replies to a tenant who texted the property line first',
+      'The holding reply when a tenant raises a protected topic',
+      'Acknowledgement when an unknown number texts in',
+    ],
+    waitsForYou: required ? [
+      'Rent reminders',
+      'Late fee notices',
+      'Utility notices',
+      'Broadcasts',
+      'Scheduling messages',
+      'Every notice from the Notices tab',
+    ] : [],
+  });
 });
 
 // ─── PAYMENTS ─────────────────────────────────────────────────
