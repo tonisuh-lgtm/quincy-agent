@@ -132,6 +132,7 @@
       <p class="muted" style="margin-bottom:2px;">9 Quincy Pl NE #2 · Washington DC · Eastring LLC</p>
       <h2 style="margin:0;font-size:20px;" id="dash-heading">Overview</h2>
     </div>
+    <div id="ledger-modal" style="display:none;margin-bottom:14px;"></div>
     <div id="send-policy"></div>
     <div id="dash-todo"></div>
     <div class="metric-grid" id="dash-metrics"></div>
@@ -307,11 +308,28 @@
     </div>
     <div id="payment-form" style="display:none;" class="card">
       <div class="row" style="gap:6px;margin-bottom:12px;">
-        <button id="pm-single-btn" class="filter-btn active" onclick="setPayMode('single')">Single entry</button>
-        <button id="pm-split-btn" class="filter-btn" onclick="setPayMode('split')">Split one transfer</button>
+        <button id="pm-smart-btn" class="filter-btn active" onclick="setPayMode('smart')">Smart (recommended)</button>
+        <button id="pm-single-btn" class="filter-btn" onclick="setPayMode('single')">Single entry</button>
+        <button id="pm-split-btn" class="filter-btn" onclick="setPayMode('split')">Manual split</button>
       </div>
 
-      <div id="pay-single">
+      <div id="pay-smart">
+        <p class="muted" style="margin-bottom:10px;">Tenants pay in lump sums. Enter what they sent and roughly what it was for, and it works out the breakdown against what they actually owe.</p>
+        <div class="input-group">
+          <div><label class="field-label">Tenant</label><select id="sm-tenant" onchange="loadOwedSummary()"></select></div>
+          <div><label class="field-label">Amount received ($)</label><input type="number" id="sm-amount" placeholder="212.00" /></div>
+        </div>
+        <label class="field-label">What was it for? (optional)</label>
+        <textarea id="sm-note" rows="2" placeholder="e.g. rent shortfall, late fee and July utilities — or paste what they texted you" style="min-height:55px;margin-bottom:8px;"></textarea>
+        <div id="sm-owed" class="share-box" style="margin-bottom:10px;"></div>
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" onclick="proposeAllocation()" id="sm-btn" style="font-size:12px;">Work out the breakdown</button>
+          <button onclick="togglePaymentForm()" style="font-size:12px;">Cancel</button>
+        </div>
+        <div id="sm-result" style="display:none;margin-top:12px;"></div>
+      </div>
+
+      <div id="pay-single" style="display:none;">
         <div class="input-group">
           <div><label class="field-label">Tenant</label><select id="pf-tenant"></select></div>
           <div><label class="field-label">Type</label>
@@ -638,6 +656,8 @@ async function loadTenants() {
   const active = allTenants.filter(t=>t.active);
   const psel = document.getElementById('pf-tenant');
   if (psel) psel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+  const smsel = document.getElementById('sm-tenant');
+  if (smsel) smsel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
   const spsel = document.getElementById('sp-tenant');
   if (spsel) spsel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
   const bsel = document.getElementById('bc-target');
@@ -960,6 +980,50 @@ async function toggleConfirmation(currentlyOn) {
   toast(currentlyOn?'Confirmation turned OFF':'Confirmation required — nothing sends without you');
 }
 
+// Full running account for one tenant: every charge, every payment
+async function openLedger(tenantId) {
+  const l = await api('/api/ledger/'+tenantId);
+  if (!l || !l.ok) return toast('Could not load ledger','err');
+
+  const rows = l.items.map(i=>`
+    <div class="row between" style="padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
+      <div style="flex:1;">
+        <span style="color:${i.kind==='charge'?'var(--text)':'#97C459'};">${i.kind==='charge'?'▸':'✓'} ${escHtml(i.label)}</span>
+        <span class="muted"> · ${i.date||''}</span>
+      </div>
+      <span style="color:${i.kind==='charge'?'var(--amber)':'#97C459'};white-space:nowrap;">${i.kind==='charge'?'+':'−'}$${i.amount.toFixed(2)}</span>
+    </div>`).join('');
+
+  const byType = Object.entries(l.byType).map(([k,v])=>`
+    <div class="share-row"><span class="muted">${k.replace(/_/g,' ')}</span><span>charged $${v.charged.toFixed(2)} · paid $${v.paid.toFixed(2)} · <strong style="color:${v.balance>0.009?'var(--amber)':'#97C459'};">$${v.balance.toFixed(2)}</strong></span></div>`).join('');
+
+  document.getElementById('ledger-modal').innerHTML = `
+    <div class="card" style="max-width:640px;margin:0 auto;">
+      <div class="row between" style="margin-bottom:10px;">
+        <div>
+          <div style="font-weight:500;">${escHtml(l.tenant.name)} — full ledger</div>
+          <div class="muted">Everything charged and everything paid, since move-in</div>
+        </div>
+        <button onclick="closeLedger()" style="font-size:11px;">Close</button>
+      </div>
+      <div class="share-box" style="margin-bottom:10px;">
+        <div class="share-row"><span>Total charged</span><span>$${l.charged.toFixed(2)}</span></div>
+        <div class="share-row"><span>Total paid</span><span style="color:#97C459;">$${l.paid.toFixed(2)}</span></div>
+        <div class="share-row"><span>Balance</span><span style="color:${l.balance>0.009?'var(--amber)':'#97C459'};">$${l.balance.toFixed(2)}</span></div>
+      </div>
+      <div class="section-title">By category</div>
+      <div class="share-box" style="margin-bottom:10px;">${byType||'<div class="muted">Nothing yet</div>'}</div>
+      <div class="section-title">Every line</div>
+      <div style="max-height:320px;overflow-y:auto;">${rows||'<div class="muted">Nothing yet</div>'}</div>
+    </div>`;
+  document.getElementById('ledger-modal').style.display='block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function closeLedger() {
+  document.getElementById('ledger-modal').style.display='none';
+}
+
 // ── DASHBOARD ─────────────────────────────────────
 async function loadDashboard() {
   if (!TOKEN) return;
@@ -1017,12 +1081,14 @@ async function loadDashboard() {
           </div>
         </div>
         <div style="text-align:right;">
-          <div style="color:${owed>0?'var(--amber)':'var(--green)'};">${owed>0?'$'+owed.toFixed(2)+' due':'Paid ✓'}</div>
-          <div class="muted">$${t.paid_this_month.toFixed(2)} / $${t.rent.toFixed(2)}</div>
+          <div style="color:${(t.total_owed||0)>0?'var(--amber)':'var(--green)'};font-weight:500;">${(t.total_owed||0)>0?'$'+t.total_owed.toFixed(2)+' owed':'Settled ✓'}</div>
+          <div class="muted">rent this month $${t.paid_this_month.toFixed(2)} / $${t.rent.toFixed(2)}</div>
         </div>
       </div>
       <div class="progress-bar" style="margin-bottom:6px;"><div class="progress-fill" style="width:${pct}%;background:${owed===0?'var(--green)':'var(--amber)'}"></div></div>
       ${t.clock?`<div style="font-size:12px;margin-bottom:4px;color:${t.clock.tone==='red'?'var(--red)':t.clock.tone==='amber'?'var(--amber)':'#97C459'};">${t.clock.text}</div>`:''}
+      ${(()=>{const b=t.owed_breakdown||{};const rows=Object.entries(b).filter(([,v])=>v.balance>0.009);return rows.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">${rows.map(([k,v])=>`<span class="tag" style="background:var(--bg3);color:var(--amber);">${k.replace(/_/g,' ')} $${v.balance.toFixed(2)}</span>`).join('')}</div>`:'';})()}
+      <button onclick="openLedger('${t.id}')" style="font-size:10px;padding:3px 8px;margin-bottom:6px;">See full ledger</button>
       ${t.leaseClock?`<div style="font-size:11px;margin-bottom:4px;padding:5px 8px;border-radius:5px;background:${t.leaseClock.tone==='red'?'rgba(226,75,74,0.1)':'rgba(186,117,23,0.1)'};color:${t.leaseClock.tone==='red'?'var(--red)':'var(--amber)'};">${t.leaseClock.text}</div>`:''}
       ${t.last_message?`<div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Last: "${t.last_message.content.slice(0,55)}${t.last_message.content.length>55?'...':''}"</div>`:''}
       <div class="muted">Lease ends ${new Date(t.lease_end+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
@@ -1162,16 +1228,134 @@ function togglePaymentForm() {
     document.getElementById('pf-month').value = m;
     document.getElementById('sp-month').value = m;
     prefillSplit();
+    setPayMode('smart');
   }
 }
 
 function setPayMode(mode) {
-  const single = mode==='single';
-  document.getElementById('pay-single').style.display = single?'block':'none';
-  document.getElementById('pay-split').style.display = single?'none':'block';
-  document.getElementById('pm-single-btn').classList.toggle('active', single);
-  document.getElementById('pm-split-btn').classList.toggle('active', !single);
-  if (!single) prefillSplit();
+  ['smart','single','split'].forEach(m => {
+    const pane = document.getElementById('pay-'+m);
+    const btn = document.getElementById('pm-'+m+'-btn');
+    if (pane) pane.style.display = m===mode ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', m===mode);
+  });
+  if (mode==='split') prefillSplit();
+  if (mode==='smart') loadOwedSummary();
+}
+
+// Show what this tenant currently owes, broken out
+async function loadOwedSummary() {
+  const tid = (document.getElementById('sm-tenant')||{}).value;
+  const box = document.getElementById('sm-owed');
+  if (!tid || !box) return;
+  const l = await api('/api/ledger/'+tid);
+  if (!l || !l.ok) { box.innerHTML=''; return; }
+  smartLedger = l;
+
+  const rows = Object.entries(l.byType).filter(([,v])=>Math.abs(v.balance) > 0.009);
+  if (!rows.length) {
+    box.innerHTML = `<div class="share-row"><span style="color:#97C459;">Nothing outstanding</span><span style="color:#97C459;">$0.00</span></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="section-title" style="margin-bottom:4px;">Currently owed</div>` +
+    rows.map(([type,v])=>`<div class="share-row"><span class="muted">${type.replace(/_/g,' ')}</span><span style="color:${v.balance>0?'var(--amber)':'#97C459'};">$${v.balance.toFixed(2)}</span></div>`).join('') +
+    `<div class="share-row"><span>Total</span><span style="color:var(--gold);">$${l.balance.toFixed(2)}</span></div>`;
+}
+
+let smartLedger = null;
+let smartProposal = null;
+
+async function proposeAllocation() {
+  const tenant_id = document.getElementById('sm-tenant').value;
+  const amount = parseFloat(document.getElementById('sm-amount').value);
+  const note = document.getElementById('sm-note').value.trim();
+  if (!tenant_id || !amount) return toast('Enter the tenant and amount','warn');
+
+  const btn = document.getElementById('sm-btn');
+  btn.disabled = true; btn.textContent = 'Working it out...';
+  const r = await api('/api/payments/allocate',{method:'POST',body:JSON.stringify({tenant_id, amount, note})});
+  btn.disabled = false; btn.textContent = 'Work out the breakdown';
+
+  if (!r || !r.ok) return toast('Could not work that out. Use manual split.','err');
+  smartProposal = r.proposal;
+
+  const el = document.getElementById('sm-result');
+  el.innerHTML = `
+    <hr class="divider">
+    <div class="section-title">Proposed breakdown</div>
+    <p class="muted" style="margin-bottom:8px;">${escHtml(r.proposal.explanation||'')}${r.proposal.fallback?' (worked out without the AI, review carefully)':''}</p>
+    <div id="sm-alloc-rows">
+      ${r.proposal.allocations.map((a,i)=>`
+      <div class="row" style="gap:6px;margin-bottom:6px;">
+        <select id="sm-type-${i}" style="flex:1;">
+          ${['rent','late_fee','utilities','deposit','other','credit'].map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('')}
+        </select>
+        <input type="number" id="sm-amt-${i}" value="${parseFloat(a.amount).toFixed(2)}" style="flex:1;" oninput="checkAllocTotal()" />
+        <button onclick="removeAlloc(${i})" style="font-size:11px;border:none;color:var(--text3);padding:4px 8px;">✕</button>
+      </div>
+      ${a.reason?`<div class="muted" style="margin:-2px 0 8px 2px;font-size:11px;">${escHtml(a.reason)}</div>`:''}`).join('')}
+    </div>
+    <div id="sm-total" class="share-box" style="margin-bottom:10px;"></div>
+    <div class="input-group" style="margin-bottom:8px;">
+      <div><label class="field-label">Apply to month</label><input type="month" id="sm-month" value="${new Date().toISOString().slice(0,7)}" /></div>
+      <div><label class="field-label">Payment method note</label><input id="sm-method" placeholder="e.g. Apple Pay" /></div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <button class="btn-primary" onclick="saveAllocation()" style="font-size:12px;">Save these entries</button>
+      <button onclick="document.getElementById('sm-result').style.display='none'" style="font-size:12px;">Cancel</button>
+    </div>`;
+  el.style.display='block';
+  checkAllocTotal();
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function currentAllocs() {
+  const out = [];
+  for (let i=0;i<20;i++) {
+    const t = document.getElementById('sm-type-'+i);
+    const a = document.getElementById('sm-amt-'+i);
+    if (t && a && a.value !== '') out.push({ idx:i, type:t.value, amount: parseFloat(a.value)||0 });
+  }
+  return out;
+}
+
+function checkAllocTotal() {
+  const amount = parseFloat(document.getElementById('sm-amount').value) || 0;
+  const allocated = currentAllocs().reduce((s,a)=>s+a.amount, 0);
+  const diff = +(amount - allocated).toFixed(2);
+  const tone = diff===0 ? '#97C459' : diff<0 ? 'var(--red)' : 'var(--amber)';
+  const msg = diff===0 ? 'Balances exactly' : diff<0 ? `Over by $${Math.abs(diff).toFixed(2)}` : `$${diff.toFixed(2)} unallocated`;
+  document.getElementById('sm-total').innerHTML = `
+    <div class="share-row"><span>Received</span><span>$${amount.toFixed(2)}</span></div>
+    <div class="share-row"><span>Allocated</span><span>$${allocated.toFixed(2)}</span></div>
+    <div class="share-row"><span style="color:${tone};">${msg}</span><span style="color:${tone};">${diff===0?'✓':'$'+diff.toFixed(2)}</span></div>`;
+}
+
+function removeAlloc(i) {
+  const t = document.getElementById('sm-type-'+i);
+  const a = document.getElementById('sm-amt-'+i);
+  if (t) t.parentElement.remove();
+  checkAllocTotal();
+}
+
+async function saveAllocation() {
+  const tenant_id = document.getElementById('sm-tenant').value;
+  const month = document.getElementById('sm-month').value;
+  const method = document.getElementById('sm-method').value.trim();
+  const amount = parseFloat(document.getElementById('sm-amount').value) || 0;
+  const allocations = currentAllocs().filter(a=>a.amount>0).map(a=>({type:a.type==='credit'?'other':a.type, amount:a.amount}));
+  if (!allocations.length) return toast('Nothing to save','warn');
+
+  const allocated = allocations.reduce((s,a)=>s+a.amount,0);
+  if (Math.abs(amount-allocated) > 0.009 && !confirm(`Received $${amount.toFixed(2)} but allocating $${allocated.toFixed(2)}. Save anyway?`)) return;
+
+  await api('/api/payments/split',{method:'POST',body:JSON.stringify({tenant_id, month, note: method, allocations})});
+  document.getElementById('sm-amount').value='';
+  document.getElementById('sm-note').value='';
+  document.getElementById('sm-result').style.display='none';
+  togglePaymentForm();
+  loadPayments(); loadDashboard();
+  toast(`Logged ${allocations.length} entries totalling $${allocated.toFixed(2)}`);
 }
 
 // Work out what this tenant currently owes so the split form can guide the allocation
