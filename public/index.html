@@ -84,9 +84,20 @@
   .share-box{background:var(--bg3);border-radius:8px;padding:12px;margin:10px 0;}
   .share-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px;}
   .share-row:last-child{border-bottom:none;font-weight:600;}
+  #toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 32px);max-width:420px;}
+  .toast{background:var(--bg2);border:0.5px solid var(--border2);border-left:3px solid var(--gold);border-radius:10px;padding:11px 16px;font-size:13px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:toastIn 0.2s ease;width:100%;}
+  .toast.ok{border-left-color:#97C459;}
+  .toast.warn{border-left-color:var(--amber);}
+  .toast.err{border-left-color:var(--red);}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .todo-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--border);font-size:13px;}
+  .todo-item:last-child{border-bottom:none;}
+  .todo-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:6px;}
 </style>
 </head>
 <body>
+
+<div id="toast-wrap"></div>
 
 <div id="login">
   <div class="login-box">
@@ -120,6 +131,7 @@
       <p class="muted" style="margin-bottom:2px;">9 Quincy Pl NE #2 · Washington DC · Eastring LLC</p>
       <h2 style="margin:0;font-size:20px;" id="dash-heading">Overview</h2>
     </div>
+    <div id="dash-todo"></div>
     <div class="metric-grid" id="dash-metrics"></div>
     <div id="dash-tenants"></div>
   </div>
@@ -181,9 +193,41 @@
   <div id="page-incidents" class="page">
     <div class="row between" style="margin-bottom:14px;">
       <h2 style="margin:0;">Incident log</h2>
-      <button onclick="toggleIncidentForm()" class="btn-primary" style="font-size:12px;">+ Log incident</button>
+      <div class="row" style="gap:6px;">
+        <button onclick="togglePasteForm()" class="btn-primary" style="font-size:12px;">📥 Paste message</button>
+        <button onclick="toggleIncidentForm()" style="font-size:12px;">+ Log manually</button>
+      </div>
     </div>
     <div class="info-box">Dated record of violations, damage, complaints, and notices. This is what supports a deposit deduction or a non-renewal decision. Text threads alone are weak evidence.</div>
+
+    <div id="paste-form" style="display:none;" class="card card-highlight">
+      <p style="font-weight:500;margin-bottom:4px;">Paste a message you received elsewhere</p>
+      <p class="muted" style="margin-bottom:10px;">Personal text, email, or something said in person. It gets read, summarized, and filed with the right category and lease reference.</p>
+      <div class="input-group">
+        <div><label class="field-label">From</label><select id="pm-tenant"></select></div>
+        <div><label class="field-label">Date received</label><input type="date" id="pm-date" /></div>
+        <div><label class="field-label">Received via</label>
+          <select id="pm-source">
+            <option value="personal text">Personal text</option>
+            <option value="email">Email</option>
+            <option value="in person">In person</option>
+            <option value="phone call">Phone call</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <label class="field-label">Screenshots (optional — you can also paste with Ctrl/Cmd+V)</label>
+      <input type="file" id="pm-images" accept="image/*" multiple onchange="handleShotPick(event)" style="margin-bottom:6px;" />
+      <div id="pm-thumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+      <label class="field-label">Message text (optional if you uploaded screenshots)</label>
+      <textarea id="pm-content" rows="6" placeholder="Paste the message text here, or leave blank and upload screenshots above. You can paste a screenshot directly into this box." style="min-height:120px;margin-bottom:10px;"></textarea>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="analyzePasted()" id="pm-analyze-btn" style="font-size:12px;">Analyze</button>
+        <button onclick="togglePasteForm()" style="font-size:12px;">Cancel</button>
+      </div>
+      <div id="pm-analysis" style="display:none;margin-top:14px;"></div>
+    </div>
+
     <div id="incident-form" style="display:none;" class="card">
       <div class="input-group">
         <div><label class="field-label">Tenant</label><select id="inc-tenant"><option value="">Property-wide</option></select></div>
@@ -260,24 +304,54 @@
       <button onclick="togglePaymentForm()" class="btn-primary" style="font-size:12px;">+ Log payment</button>
     </div>
     <div id="payment-form" style="display:none;" class="card">
-      <div class="input-group">
-        <div><label class="field-label">Tenant</label><select id="pf-tenant"></select></div>
-        <div><label class="field-label">Type</label>
-          <select id="pf-type">
-            <option value="rent">Rent</option>
-            <option value="utilities">Utilities</option>
-            <option value="deposit">Deposit</option>
-            <option value="late_fee">Late fee</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div><label class="field-label">Amount ($)</label><input type="number" id="pf-amount" placeholder="0.00" /></div>
-        <div><label class="field-label">Month</label><input type="month" id="pf-month" /></div>
+      <div class="row" style="gap:6px;margin-bottom:12px;">
+        <button id="pm-single-btn" class="filter-btn active" onclick="setPayMode('single')">Single entry</button>
+        <button id="pm-split-btn" class="filter-btn" onclick="setPayMode('split')">Split one transfer</button>
       </div>
-      <input id="pf-note" placeholder="Note (e.g. Apple Pay, partial)" style="margin-bottom:10px;" />
-      <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="savePayment()">Save</button>
-        <button onclick="togglePaymentForm()">Cancel</button>
+
+      <div id="pay-single">
+        <div class="input-group">
+          <div><label class="field-label">Tenant</label><select id="pf-tenant"></select></div>
+          <div><label class="field-label">Type</label>
+            <select id="pf-type">
+              <option value="rent">Rent</option>
+              <option value="utilities">Utilities</option>
+              <option value="deposit">Deposit</option>
+              <option value="late_fee">Late fee</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div><label class="field-label">Amount ($)</label><input type="number" id="pf-amount" placeholder="0.00" /></div>
+          <div><label class="field-label">Month</label><input type="month" id="pf-month" /></div>
+        </div>
+        <input id="pf-note" placeholder="Note (e.g. Apple Pay, partial)" style="margin-bottom:10px;" />
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" onclick="savePayment()">Save</button>
+          <button onclick="togglePaymentForm()">Cancel</button>
+        </div>
+      </div>
+
+      <div id="pay-split" style="display:none;">
+        <p class="muted" style="margin-bottom:10px;">They sent one amount covering several things. Enter the total, then allocate it. Each category is logged as its own entry so the rent balance stays accurate.</p>
+        <div class="input-group">
+          <div><label class="field-label">Tenant</label><select id="sp-tenant" onchange="prefillSplit()"></select></div>
+          <div><label class="field-label">Month</label><input type="month" id="sp-month" onchange="prefillSplit()" /></div>
+          <div><label class="field-label">Total received ($)</label><input type="number" id="sp-total" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
+          <div><label class="field-label">Note</label><input id="sp-note" placeholder="e.g. Apple Pay" /></div>
+        </div>
+        <div class="section-title" style="margin-top:10px;">Allocate</div>
+        <div class="input-group">
+          <div><label class="field-label">Rent</label><input type="number" id="sp-rent" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
+          <div><label class="field-label">Late fee</label><input type="number" id="sp-late_fee" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
+          <div><label class="field-label">Utilities</label><input type="number" id="sp-utilities" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
+          <div><label class="field-label">Other</label><input type="number" id="sp-other" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
+        </div>
+        <div id="sp-remainder" class="share-box" style="margin-top:4px;"></div>
+        <div class="row" style="gap:8px;margin-top:10px;">
+          <button class="btn-primary" onclick="saveSplitPayment()">Save all entries</button>
+          <button onclick="autoAllocate()" style="font-size:12px;">Auto-allocate</button>
+          <button onclick="togglePaymentForm()" style="font-size:12px;">Cancel</button>
+        </div>
       </div>
     </div>
     <div id="payments-list"></div>
@@ -289,18 +363,15 @@
       <h2 style="margin:0;">Utility bills</h2>
       <button onclick="toggleUtilForm()" class="btn-primary" style="font-size:12px;">+ Add bill</button>
     </div>
-    <div class="info-box">
-      <strong style="color:var(--text);">Split rules:</strong> Water ÷5 (you + tenants + 2 downstairs) · Gas/Electricity/Internet ÷3 (you + tenants)<br>
-      <span style="color:var(--amber);">Downstairs share shown separately for your Venmo reference.</span>
-    </div>
+    <div class="info-box" id="split-explain">Loading split rules...</div>
     <div id="util-form" style="display:none;" class="card">
       <div class="input-group">
         <div><label class="field-label">Utility</label>
           <select id="uf-type" onchange="clearUtilCalc()">
-            <option value="water">Water (÷5)</option>
-            <option value="electricity">Electricity (÷3)</option>
-            <option value="gas">Gas (÷3)</option>
-            <option value="internet">Internet (÷3)</option>
+            <option value="water">Water</option>
+            <option value="electricity">Electricity</option>
+            <option value="gas">Gas</option>
+            <option value="internet">Internet</option>
           </select>
         </div>
         <div><label class="field-label">Period (e.g. July 2026)</label><input id="uf-period" placeholder="e.g. July 2026" /></div>
@@ -454,10 +525,17 @@
         <div><label class="field-label">Full name</label><input id="nt-name" /></div>
         <div><label class="field-label">Short name</label><input id="nt-short" /></div>
         <div><label class="field-label">Phone (+1...)</label><input id="nt-phone" /></div>
+        <div><label class="field-label">Email</label><input id="nt-email" /></div>
+        <div><label class="field-label">Room</label><input id="nt-room" placeholder="e.g. Front bedroom" /></div>
         <div><label class="field-label">Payment method</label><input id="nt-payment" placeholder="e.g. Zelle" /></div>
         <div><label class="field-label">Monthly rent ($)</label><input type="number" id="nt-rent" /></div>
+        <div><label class="field-label">Deposit ($)</label><input type="number" id="nt-deposit" /></div>
+        <div><label class="field-label">Employer / school</label><input id="nt-employer" /></div>
+        <div><label class="field-label">Move-in date</label><input type="date" id="nt-movein" /></div>
         <div><label class="field-label">Lease start</label><input type="date" id="nt-start" /></div>
         <div><label class="field-label">Lease end</label><input type="date" id="nt-end" /></div>
+        <div><label class="field-label">Emergency contact</label><input id="nt-emname" /></div>
+        <div><label class="field-label">Emergency phone</label><input id="nt-emphone" /></div>
       </div>
       <button class="btn-primary" onclick="addTenant()" style="font-size:12px;">Add tenant</button>
     </div>
@@ -505,6 +583,7 @@ function initApp() {
   loadTenants();
   loadLeases();
   loadNoticeTemplates();
+  loadSplitInfo();
   loadIncidents();
   loadMoveouts();
   const m = document.getElementById('pf-month');
@@ -531,6 +610,8 @@ async function loadTenants() {
   const active = allTenants.filter(t=>t.active);
   const psel = document.getElementById('pf-tenant');
   if (psel) psel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+  const spsel = document.getElementById('sp-tenant');
+  if (spsel) spsel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
   const bsel = document.getElementById('bc-target');
   if (bsel) bsel.innerHTML = '<option value="all">All tenants</option>' + active.map(t=>`<option value="${t.id}">${t.short_name} (${t.payment_method})</option>`).join('');
   const lsel = document.getElementById('lease-tenant');
@@ -542,51 +623,116 @@ async function loadTenants() {
   if (noticeSel) { noticeSel.innerHTML = activeOpts; noticeSel.onchange = renderNoticeFields; }
   const incSel = document.getElementById('inc-tenant');
   if (incSel) incSel.innerHTML = '<option value="">Property-wide</option>' + allOpts;
+  const pmSel = document.getElementById('pm-tenant');
+  if (pmSel) pmSel.innerHTML = allOpts;
   const moSel = document.getElementById('mo-tenant');
   if (moSel) moSel.innerHTML = activeOpts;
   const expSel = document.getElementById('inc-export-tenant');
   if (expSel) expSel.innerHTML = '<option value="">All tenants</option>' + allOpts;
 
   renderTenantList();
+  loadSplitInfo();
 }
 
 function renderTenantList() {
   const el = document.getElementById('tenant-list');
   if (!el) return;
   if (!allTenants.length) { el.innerHTML='<div class="muted">No tenants yet.</div>'; return; }
-  el.innerHTML = allTenants.map(t=>`
-    <div style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+
+  const STATUS = {
+    current:   {label:'Current',   color:'#97C459', desc:'Active tenant. Gets messages, counts in utility splits, shows on the dashboard.'},
+    notice:    {label:'On notice', color:'var(--amber)', desc:'Still living here but leaving. Gets messages and counts in splits.'},
+    moved_out: {label:'Moved out', color:'var(--text3)', desc:'No longer here. Stops getting messages and drops out of utility splits, but all history is kept.'},
+  };
+
+  el.innerHTML = allTenants.map(t=>{
+    const st = t.status || (t.active ? 'current' : 'moved_out');
+    const s = STATUS[st] || STATUS.current;
+    return `
+    <div style="padding:12px 0;border-bottom:0.5px solid var(--border);">
       <div class="row between">
         <div class="row" style="gap:8px;">
-          <div class="avatar" style="width:30px;height:30px;background:${t.color};font-size:10px;">${t.initials}</div>
+          <div class="avatar" style="width:34px;height:34px;background:${t.color};font-size:11px;${st==='moved_out'?'opacity:0.5;':''}">${t.initials}</div>
           <div>
-            <div style="font-weight:500;font-size:13px;">${escHtml(t.name)} ${!t.active?'<span class="tag" style="background:var(--bg3);color:var(--text3);">inactive</span>':''}</div>
-            <div class="muted">${escHtml(t.payment_method||'')} · $${t.rent}/mo · ${escHtml(t.phone)}</div>
+            <div style="font-weight:500;font-size:13px;">
+              ${escHtml(t.name)}
+              <span class="tag" style="background:var(--bg3);color:${s.color};margin-left:4px;">${s.label}</span>
+            </div>
+            <div class="muted">${escHtml(t.room||'')}${t.room?' · ':''}$${t.rent}/mo · ${escHtml(t.payment_method||'')}</div>
+            <div class="muted">${escHtml(t.phone)}${t.email?' · '+escHtml(t.email):''}</div>
             <div class="muted">Lease: ${t.lease_start||'—'} to ${t.lease_end||'—'}</div>
           </div>
         </div>
-        <div class="row" style="gap:6px;">
-          <button onclick="toggleEditTenant('${t.id}')" style="font-size:11px;">✎</button>
-          <button onclick="toggleTenantActive('${t.id}',${t.active})" style="font-size:11px;color:${t.active?'var(--red)':'var(--green)'};">${t.active?'Off':'On'}</button>
-        </div>
+        <button onclick="toggleEditTenant('${t.id}')" style="font-size:11px;">Edit profile</button>
       </div>
-      <div id="tedit-${t.id}" style="display:none;margin-top:10px;background:var(--bg3);border-radius:8px;padding:12px;">
-        <div class="input-group" style="margin-bottom:8px;">
+
+      <div id="tedit-${t.id}" style="display:none;margin-top:12px;background:var(--bg3);border-radius:8px;padding:14px;">
+
+        <div class="section-title">Status</div>
+        <select id="te-status-${t.id}" onchange="describeStatus('${t.id}')" style="margin-bottom:6px;">
+          ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${st===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+        <p class="muted" id="te-status-desc-${t.id}" style="margin-bottom:12px;">${s.desc}</p>
+
+        <div class="section-title">Basics</div>
+        <div class="input-group">
           <div><label class="field-label">Full name</label><input id="te-name-${t.id}" value="${escHtml(t.name)}" /></div>
           <div><label class="field-label">Short name</label><input id="te-short-${t.id}" value="${escHtml(t.short_name)}" /></div>
           <div><label class="field-label">Phone (+1...)</label><input id="te-phone-${t.id}" value="${escHtml(t.phone)}" /></div>
+          <div><label class="field-label">Email</label><input id="te-email-${t.id}" value="${escHtml(t.email||'')}" /></div>
+          <div><label class="field-label">Room</label><input id="te-room-${t.id}" value="${escHtml(t.room||'')}" placeholder="e.g. Front bedroom" /></div>
+          <div><label class="field-label">Employer / school</label><input id="te-employer-${t.id}" value="${escHtml(t.employer||'')}" /></div>
+        </div>
+
+        <div class="section-title" style="margin-top:10px;">Money</div>
+        <div class="input-group">
+          <div><label class="field-label">Monthly rent ($)</label><input type="number" id="te-rent-${t.id}" value="${t.rent}" /></div>
           <div><label class="field-label">Payment method</label><input id="te-payment-${t.id}" value="${escHtml(t.payment_method||'')}" /></div>
-          <div><label class="field-label">Rent ($)</label><input type="number" id="te-rent-${t.id}" value="${t.rent}" /></div>
           <div><label class="field-label">Deposit ($)</label><input type="number" id="te-deposit-${t.id}" value="${t.deposit||''}" /></div>
+          <div><label class="field-label">First month prorated ($)</label><input type="number" id="te-prorated-${t.id}" value="${t.prorated_first||''}" /></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:12px;color:var(--text2);cursor:pointer;">
+          <input type="checkbox" id="te-depheld-${t.id}" ${t.deposit_held!==0?'checked':''} style="width:auto;margin:0;" />
+          Deposit still held
+        </label>
+
+        <div class="section-title" style="margin-top:10px;">Dates</div>
+        <div class="input-group">
+          <div><label class="field-label">Move-in date</label><input type="date" id="te-movein-${t.id}" value="${t.move_in_date||''}" /></div>
           <div><label class="field-label">Lease start</label><input type="date" id="te-start-${t.id}" value="${t.lease_start||''}" /></div>
           <div><label class="field-label">Lease end</label><input type="date" id="te-end-${t.id}" value="${t.lease_end||''}" /></div>
         </div>
-        <div class="row" style="gap:8px;">
-          <button class="btn-primary" onclick="saveTenantEdit('${t.id}')" style="font-size:12px;">Save</button>
-          <button onclick="toggleEditTenant('${t.id}')" style="font-size:12px;">Cancel</button>
+
+        <div class="section-title" style="margin-top:10px;">Emergency contact</div>
+        <div class="input-group">
+          <div><label class="field-label">Name</label><input id="te-emname-${t.id}" value="${escHtml(t.emergency_name||'')}" /></div>
+          <div><label class="field-label">Phone</label><input id="te-emphone-${t.id}" value="${escHtml(t.emergency_phone||'')}" /></div>
+        </div>
+
+        <div class="section-title" style="margin-top:10px;">Private notes</div>
+        <p class="muted" style="margin-bottom:4px;">Only you see this. Never shared with the tenant or used by the agent.</p>
+        <textarea id="te-notes-${t.id}" rows="3" style="min-height:65px;margin-bottom:12px;">${escHtml(t.notes||'')}</textarea>
+
+        <div class="row between">
+          <div class="row" style="gap:8px;">
+            <button class="btn-primary" onclick="saveTenantEdit('${t.id}')" style="font-size:12px;">Save profile</button>
+            <button onclick="toggleEditTenant('${t.id}')" style="font-size:12px;">Cancel</button>
+          </div>
+          <button onclick="deleteTenant('${t.id}','${escHtml(t.name)}')" class="btn-danger" style="font-size:11px;">Delete permanently</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function describeStatus(id) {
+  const DESC = {
+    current:'Active tenant. Gets messages, counts in utility splits, shows on the dashboard.',
+    notice:'Still living here but leaving. Gets messages and counts in splits.',
+    moved_out:'No longer here. Stops getting messages and drops out of utility splits, but all history is kept.',
+  };
+  const v = document.getElementById('te-status-'+id).value;
+  document.getElementById('te-status-desc-'+id).textContent = DESC[v] || '';
 }
 
 function toggleEditTenant(id) {
@@ -595,28 +741,43 @@ function toggleEditTenant(id) {
 }
 
 async function saveTenantEdit(id) {
+  const v = f => { const el=document.getElementById('te-'+f+'-'+id); return el ? el.value : undefined; };
+  const status = v('status');
   const data = {
-    name: document.getElementById('te-name-'+id).value.trim(),
-    short_name: document.getElementById('te-short-'+id).value.trim(),
-    phone: document.getElementById('te-phone-'+id).value.trim(),
-    payment_method: document.getElementById('te-payment-'+id).value.trim(),
-    rent: parseFloat(document.getElementById('te-rent-'+id).value),
-    deposit: parseFloat(document.getElementById('te-deposit-'+id).value)||0,
-    lease_start: document.getElementById('te-start-'+id).value,
-    lease_end: document.getElementById('te-end-'+id).value,
+    name: v('name').trim(),
+    short_name: v('short').trim(),
+    phone: v('phone').trim(),
+    email: v('email').trim(),
+    room: v('room').trim(),
+    employer: v('employer').trim(),
+    payment_method: v('payment').trim(),
+    rent: parseFloat(v('rent')) || 0,
+    deposit: parseFloat(v('deposit')) || 0,
+    prorated_first: parseFloat(v('prorated')) || 0,
+    deposit_held: document.getElementById('te-depheld-'+id).checked ? 1 : 0,
+    move_in_date: v('movein'),
+    lease_start: v('start'),
+    lease_end: v('end'),
+    emergency_name: v('emname').trim(),
+    emergency_phone: v('emphone').trim(),
+    notes: v('notes'),
+    status,
+    active: status === 'moved_out' ? 0 : 1,
   };
+  if (!data.name || !data.phone) return toast('Name and phone are required','warn');
   await api(`/api/tenants/${id}`,{method:'PATCH',body:JSON.stringify(data)});
   toggleEditTenant(id);
   await loadTenants();
   loadDashboard();
-  alert('✅ Tenant updated!');
+  toast('Profile saved');
 }
 
-async function toggleTenantActive(id, currentActive) {
-  if (!confirm(`${currentActive?'Deactivate':'Activate'} this tenant?`)) return;
-  await api(`/api/tenants/${id}`,{method:'PATCH',body:JSON.stringify({active:currentActive?0:1})});
+async function deleteTenant(id, name) {
+  if (!confirm(`Permanently delete ${name}?\n\nThis also removes their messages, payments, leases, incidents, and move-out records. It cannot be undone.\n\nIf they just moved out, set their status to "Moved out" instead so the history is kept.`)) return;
+  if (!confirm('Last check. Delete everything for this tenant?')) return;
+  await api(`/api/tenants/${id}`,{method:'DELETE'});
   await loadTenants();
-  loadDashboard();
+  loadDashboard(); loadIncidents(); loadPayments();
 }
 
 // ── LEASE DOCUMENTS ───────────────────────────────
@@ -656,7 +817,7 @@ async function loadLeases() {
 async function uploadLease() {
   const tenantId = document.getElementById('lease-tenant').value;
   const fileInput = document.getElementById('lease-file');
-  if (!fileInput.files.length) return alert('Select a PDF file first');
+  if (!fileInput.files.length) return toast('Select a PDF file first','warn');
 
   const btn = document.getElementById('lease-upload-btn');
   btn.textContent = 'Reading lease...';
@@ -676,7 +837,7 @@ async function uploadLease() {
   fileInput.value = '';
 
   if (result.ok) {
-    alert('✅ Lease uploaded and summarized! Agent will now reference this lease when answering tenant questions.');
+    toast('Lease uploaded and summarized. The agent will use it when answering questions.');
     loadLeases();
   }
 }
@@ -692,6 +853,50 @@ async function deleteLease(id) {
   loadLeases();
 }
 
+// Small inline notification instead of blocking alert popups
+function toast(msg, kind) {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || 'ok');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(()=>el.remove(), 300); }, kind === 'err' ? 5000 : 3200);
+}
+
+// Build the "what needs you today" list from live state
+function renderTodo(d) {
+  const items = [];
+  const goto = (page, idx) => `showPage('${page}',document.querySelectorAll('.nav-btn')[${idx}])`;
+
+  if (d.pendingPreviews > 0) items.push({tone:'var(--amber)', text:`${d.pendingPreviews} message${d.pendingPreviews===1?'':'s'} waiting for you to approve before they send`, action:goto('previews',2), label:'Review'});
+  if (d.unread > 0) items.push({tone:'var(--red)', text:`${d.unread} tenant message${d.unread===1?'':'s'} flagged for your review`, action:goto('inbox',1), label:'Open inbox'});
+
+  d.tenants.forEach(t => {
+    if (t.clock && t.clock.tone === 'red') items.push({tone:'var(--red)', text:`${t.short_name} owes $${t.balance_due.toFixed(2)} — ${t.clock.text}`, action:goto('notices',3), label:'Send notice'});
+    else if (t.clock && t.clock.tone === 'amber' && t.balance_due > 0) items.push({tone:'var(--amber)', text:`${t.short_name} owes $${t.balance_due.toFixed(2)} — ${t.clock.text}`, action:goto('notices',3), label:'Send reminder'});
+    if (t.leaseClock && t.leaseClock.tone === 'red') items.push({tone:'var(--red)', text:`${t.short_name}: ${t.leaseClock.text}`, action:goto('notices',3), label:'Send notice'});
+    if (!t.has_lease) items.push({tone:'var(--text2)', text:`No lease on file for ${t.short_name}`, action:goto('settings',9), label:'Upload'});
+  });
+
+  if (d.openIncidents > 0) items.push({tone:'var(--text2)', text:`${d.openIncidents} open incident${d.openIncidents===1?'':'s'} in the record`, action:goto('incidents',6), label:'View'});
+  if (d.activeMoveouts > 0) items.push({tone:'var(--amber)', text:`${d.activeMoveouts} move-out in progress`, action:goto('moveout',7), label:'Open'});
+
+  const el = document.getElementById('dash-todo');
+  if (!items.length) {
+    el.innerHTML = `<div class="card" style="border-left:3px solid #97C459;"><div style="font-weight:500;">Nothing needs you right now</div><div class="muted">Rent is current, no messages pending, nothing overdue.</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card" style="border-left:3px solid var(--gold);">
+    <div class="section-title">Needs your attention</div>
+    ${items.slice(0,8).map(i=>`
+      <div class="todo-item">
+        <div class="todo-dot" style="background:${i.tone};"></div>
+        <div style="flex:1;">${escHtml(i.text)}</div>
+        <button onclick="${i.action}" style="font-size:10px;padding:4px 9px;white-space:nowrap;">${i.label}</button>
+      </div>`).join('')}
+  </div>`;
+}
+
 // ── DASHBOARD ─────────────────────────────────────
 async function loadDashboard() {
   if (!TOKEN) return;
@@ -705,6 +910,8 @@ async function loadDashboard() {
   const previewBadge = document.getElementById('preview-badge');
   previewBadge.textContent = d.pendingPreviews;
   previewBadge.style.display = d.pendingPreviews > 0 ? 'inline' : 'none';
+
+  renderTodo(d);
 
   document.getElementById('dash-metrics').innerHTML = `
     <div class="metric" onclick="showPage('inbox',document.querySelectorAll('.nav-btn')[1])">
@@ -789,7 +996,7 @@ async function confirmPreview(id) {
   await api(`/api/previews/${id}/confirm`, {method:'POST'});
   loadPreviews();
   loadDashboard();
-  alert('✅ Sent!');
+  toast('Sent');
 }
 
 async function cancelPreview(id) {
@@ -886,7 +1093,106 @@ async function resolveComplaint(id) {
 function togglePaymentForm() {
   const f = document.getElementById('payment-form');
   f.style.display = f.style.display==='none'?'block':'none';
-  if (f.style.display==='block') document.getElementById('pf-month').value=new Date().toISOString().slice(0,7);
+  if (f.style.display==='block') {
+    const m = new Date().toISOString().slice(0,7);
+    document.getElementById('pf-month').value = m;
+    document.getElementById('sp-month').value = m;
+    prefillSplit();
+  }
+}
+
+function setPayMode(mode) {
+  const single = mode==='single';
+  document.getElementById('pay-single').style.display = single?'block':'none';
+  document.getElementById('pay-split').style.display = single?'none':'block';
+  document.getElementById('pm-single-btn').classList.toggle('active', single);
+  document.getElementById('pm-split-btn').classList.toggle('active', !single);
+  if (!single) prefillSplit();
+}
+
+// Work out what this tenant currently owes so the split form can guide the allocation
+async function getOwed(tenantId, month) {
+  const tenant = allTenants.find(t=>t.id===tenantId);
+  if (!tenant) return null;
+  const payments = await api('/api/payments?month='+encodeURIComponent(month));
+  const paidRent = payments.filter(p=>p.tenant_id===tenantId && p.type==='rent').reduce((s,p)=>s+p.amount,0);
+  return { rentOwed: Math.max(0, tenant.rent - paidRent), rent: tenant.rent, paidRent };
+}
+
+async function prefillSplit() {
+  const tid = document.getElementById('sp-tenant').value;
+  const month = document.getElementById('sp-month').value;
+  if (!tid || !month) return;
+  const owed = await getOwed(tid, month);
+  const box = document.getElementById('sp-remainder');
+  if (owed && box) splitOwedCache = owed;
+  updateSplitRemainder();
+}
+
+let splitOwedCache = null;
+
+function updateSplitRemainder() {
+  const total = parseFloat(document.getElementById('sp-total').value) || 0;
+  const parts = ['rent','late_fee','utilities','other'].map(k => parseFloat(document.getElementById('sp-'+k).value) || 0);
+  const allocated = parts.reduce((a,b)=>a+b, 0);
+  const remainder = parseFloat((total - allocated).toFixed(2));
+
+  const tone = remainder === 0 && total > 0 ? 'var(--green)' : remainder < 0 ? 'var(--red)' : 'var(--amber)';
+  const msg = total === 0 ? 'Enter the total received'
+    : remainder === 0 ? 'Fully allocated'
+    : remainder < 0 ? `Over-allocated by $${Math.abs(remainder).toFixed(2)}`
+    : `$${remainder.toFixed(2)} left to allocate`;
+
+  let html = `<div class="share-row"><span>Total received</span><span>$${total.toFixed(2)}</span></div>
+    <div class="share-row"><span>Allocated</span><span>$${allocated.toFixed(2)}</span></div>
+    <div class="share-row"><span style="color:${tone};">${msg}</span><span style="color:${tone};">${remainder !== 0 ? '$'+remainder.toFixed(2) : '✓'}</span></div>`;
+  if (splitOwedCache && splitOwedCache.rentOwed > 0) {
+    html += `<div class="share-row" style="border-top:0.5px solid var(--border);margin-top:4px;"><span class="muted">Rent currently outstanding</span><span class="muted">$${splitOwedCache.rentOwed.toFixed(2)}</span></div>`;
+  }
+  document.getElementById('sp-remainder').innerHTML = html;
+}
+
+// Fill rent first up to what's outstanding, then leave the rest for you to place
+function autoAllocate() {
+  const total = parseFloat(document.getElementById('sp-total').value) || 0;
+  if (!total) return toast('Enter the total received first','warn');
+  if (!splitOwedCache) return toast('Select a tenant and month first','warn');
+  const toRent = Math.min(total, splitOwedCache.rentOwed);
+  document.getElementById('sp-rent').value = toRent > 0 ? toRent.toFixed(2) : '';
+  ['late_fee','utilities','other'].forEach(k=>document.getElementById('sp-'+k).value='');
+  updateSplitRemainder();
+}
+
+async function saveSplitPayment() {
+  const tenant_id = document.getElementById('sp-tenant').value;
+  const month = document.getElementById('sp-month').value;
+  const total = parseFloat(document.getElementById('sp-total').value) || 0;
+  if (!tenant_id || !month) return toast('Select a tenant and month','warn');
+  if (!total) return toast('Enter the total received','warn');
+
+  const allocations = ['rent','late_fee','utilities','other']
+    .map(type => ({ type, amount: parseFloat(document.getElementById('sp-'+type).value) || 0 }))
+    .filter(a => a.amount > 0);
+
+  if (!allocations.length) return toast('Allocate the amount across at least one category','warn');
+
+  const allocated = allocations.reduce((s,a)=>s+a.amount, 0);
+  const remainder = parseFloat((total - allocated).toFixed(2));
+  if (remainder !== 0) {
+    const ok = confirm(remainder > 0
+      ? `$${remainder.toFixed(2)} is still unallocated. Save anyway?`
+      : `Allocations exceed the total by $${Math.abs(remainder).toFixed(2)}. Save anyway?`);
+    if (!ok) return;
+  }
+
+  await api('/api/payments/split',{method:'POST',body:JSON.stringify({
+    tenant_id, month, note: document.getElementById('sp-note').value, allocations
+  })});
+
+  ['sp-total','sp-rent','sp-late_fee','sp-utilities','sp-other','sp-note'].forEach(id=>document.getElementById(id).value='');
+  togglePaymentForm();
+  loadPayments(); loadDashboard();
+  toast(`Logged ${allocations.length} entries totalling $${allocated.toFixed(2)}`);
 }
 
 async function savePayment() {
@@ -897,7 +1203,7 @@ async function savePayment() {
     month:document.getElementById('pf-month').value,
     note:document.getElementById('pf-note').value,
   };
-  if (!data.amount) return alert('Enter an amount');
+  if (!data.amount) return toast('Enter an amount','warn');
   await api('/api/payments',{method:'POST',body:JSON.stringify(data)});
   document.getElementById('pf-amount').value='';
   document.getElementById('pf-note').value='';
@@ -1022,32 +1328,54 @@ async function handleReceiptUpload() {
     const ex = result.extracted;
     if (ex.total) document.getElementById('uf-amount').value = ex.total;
     if (ex.period) document.getElementById('uf-period').value = ex.period;
-    alert(`✅ Receipt read! Extracted: $${ex.total} for ${ex.period||'period'} from ${ex.company||'utility company'}. Review and calculate split.`);
+    toast(`Read: $${ex.total} for ${ex.period||'period'} from ${ex.company||'the utility'}`);
     calcUtil();
+  }
+}
+
+let splitInfo = null;
+
+async function loadSplitInfo() {
+  if (!TOKEN) return;
+  splitInfo = await api('/api/utilities/split-info');
+  const box = document.getElementById('split-explain');
+  if (box && splitInfo && splitInfo.ok) {
+    box.innerHTML = `<strong style="color:var(--text);">Right now:</strong> Water ${splitInfo.explanation.water} · Gas/Electric/Internet ${splitInfo.explanation.other}
+      <br><span style="color:var(--amber);">Downstairs share is calculated for you so you can Venmo request it.</span>
+      <br><span class="muted">This updates automatically when a tenant's status changes, so you never have to redo the math.</span>`;
   }
 }
 
 function calcUtil() {
   const type = document.getElementById('uf-type').value;
   const amt = parseFloat(document.getElementById('uf-amount').value);
-  if (!amt) return alert('Enter a bill amount');
-  const divisors = {water:5,electricity:3,gas:3,internet:3};
-  const d = divisors[type]||3;
-  const tenantShare = parseFloat((amt/d).toFixed(2));
-  const ownerShare = tenantShare;
-  const downstairsShare = type==='water' ? parseFloat((amt*2/5).toFixed(2)) : 0;
+  if (!amt) return toast('Enter a bill amount', 'warn');
+  if (!splitInfo || !splitInfo.ok) return toast('Still loading split info, try again in a second', 'warn');
+
+  const divisor = type==='water' ? splitInfo.waterTotal : splitInfo.upstairs;
+  const perPerson = parseFloat((amt/divisor).toFixed(2));
+  const tenantShare = perPerson;
+  const ownerShare = splitInfo.ownerCounts ? perPerson : 0;
+  const downstairsShare = type==='water' ? parseFloat((perPerson * splitInfo.downstairs).toFixed(2)) : 0;
 
   utilCalcResult = {type, total:amt, period:document.getElementById('uf-period').value, notes:document.getElementById('uf-notes').value, tenantShare, ownerShare, downstairsShare};
 
-  const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
-  const tenantNames = allTenants.filter(t=>t.active).map(t=>t.short_name).join(', ');
+  const labels = {water:'Water',electricity:'Electricity',gas:'Gas',internet:'Internet'};
+  const tenantNames = allTenants.filter(t=>t.active).map(t=>t.short_name);
   let html = `
-    <div class="share-row"><span>${labels[type]} — Total</span><strong>$${amt.toFixed(2)}</strong></div>
-    <div class="share-row"><span>Each tenant (${tenantNames})</span><span style="color:var(--gold);">$${tenantShare.toFixed(2)}</span></div>
-    <div class="share-row"><span>Your share</span><span style="color:var(--gold);">$${ownerShare.toFixed(2)}</span></div>`;
-  if (downstairsShare > 0) {
-    html += `<div class="share-row"><span style="color:var(--amber);">Downstairs neighbors (Venmo request)</span><span style="color:var(--amber);">$${downstairsShare.toFixed(2)}</span></div>`;
+    <div class="share-row"><span>${labels[type]} total (÷${divisor})</span><strong>$${amt.toFixed(2)}</strong></div>`;
+  tenantNames.forEach(n => {
+    html += `<div class="share-row"><span>${escHtml(n)}</span><span style="color:var(--gold);">$${tenantShare.toFixed(2)}</span></div>`;
+  });
+  if (ownerShare > 0) html += `<div class="share-row"><span>You</span><span style="color:var(--gold);">$${ownerShare.toFixed(2)}</span></div>`;
+  if (downstairsShare > 0) html += `<div class="share-row"><span style="color:var(--amber);">Downstairs (${splitInfo.downstairs} people) — Venmo request</span><span style="color:var(--amber);">$${downstairsShare.toFixed(2)}</span></div>`;
+
+  const accounted = tenantShare*tenantNames.length + ownerShare + downstairsShare;
+  const drift = parseFloat((amt - accounted).toFixed(2));
+  if (Math.abs(drift) >= 0.01) {
+    html += `<div class="share-row"><span class="muted">Rounding difference</span><span class="muted">$${drift.toFixed(2)}</span></div>`;
   }
+
   document.getElementById('util-calc').innerHTML = html;
   document.getElementById('util-calc').style.display='block';
   document.getElementById('util-save-btn').style.display='inline-block';
@@ -1067,7 +1395,9 @@ async function saveUtil() {
   }
   const result = await api('/api/utilities',{method:'POST',body:JSON.stringify({...utilCalcResult,receipt:receiptData})});
   if (result.ok) {
-    alert(`Bill saved.\n\nDownstairs neighbors owe: $${utilCalcResult.downstairsShare.toFixed(2)} (Venmo request)\n\nUse "Send to tenants" in the summary to notify tenants.`);
+    toast(utilCalcResult.downstairsShare > 0
+      ? `Bill saved. Venmo request downstairs for $${utilCalcResult.downstairsShare.toFixed(2)}`
+      : 'Bill saved');
     toggleUtilForm();
     loadUtilities();
   }
@@ -1076,7 +1406,7 @@ async function saveUtil() {
 async function notifyUtil(id) {
   const res = await api(`/api/utilities/${id}/notify`,{method:'POST'});
   if (res.ok) {
-    alert('✅ Preview sent to your phone. Check Previews tab to confirm sending to tenants.');
+    toast('Preview sent to your phone. Confirm it in the Previews tab.');
     loadPreviews(); loadDashboard();
   }
 }
@@ -1084,7 +1414,7 @@ async function notifyUtil(id) {
 async function notifyAllUtil(period) {
   const res = await api(`/api/utilities/notify-all?period=${encodeURIComponent(period)}`,{method:'POST'});
   if (res.ok) {
-    alert('✅ Preview sent to your phone. Check Previews tab to confirm sending to tenants.');
+    toast('Preview sent to your phone. Confirm it in the Previews tab.');
     loadPreviews(); loadDashboard();
   }
 }
@@ -1207,13 +1537,13 @@ async function deleteJob(id) {
 async function approveSlot(jobId, slot) {
   if (!confirm(`Confirm: ${slot}?`)) return;
   await api(`/api/scheduling/${jobId}/approve`,{method:'POST',body:JSON.stringify({slot})});
-  alert('✅ Confirmed! Preview sent to your phone for tenant notification.');
+  toast('Confirmed. Preview waiting in the Previews tab.');
   loadScheduling(); loadPreviews();
 }
 
 async function confirmDazzling(jobId) {
   const confirmation = document.getElementById('dz-confirm-'+jobId).value.trim();
-  if (!confirmation) return alert('Enter confirmation details');
+  if (!confirmation) return toast('Enter confirmation details','warn');
   await api(`/api/scheduling/${jobId}/dazzling-confirm`,{method:'POST',body:JSON.stringify({confirmation})});
   loadScheduling();
 }
@@ -1311,7 +1641,7 @@ function showThumbtack() {
 
 async function genThumbtack() {
   const issue = document.getElementById('tt-issue').value.trim();
-  if (!issue) return alert('Describe the issue first');
+  if (!issue) return toast('Describe the issue first','warn');
   document.getElementById('tt-result').innerHTML='<div class="muted">Generating...</div>';
   document.getElementById('tt-result').style.display='block';
   const res = await api('/api/draft-message',{method:'POST',body:JSON.stringify({context:issue,targetName:'a contractor on Thumbtack'})});
@@ -1326,14 +1656,14 @@ async function genThumbtack() {
 
 function copyThumbtack() {
   navigator.clipboard.writeText(lastThumbtackDraft);
-  alert('Copied to clipboard');
+  toast('Copied to clipboard');
 }
 
 // ── BROADCAST ─────────────────────────────────────
 function previewBroadcast() {
   const content = document.getElementById('bc-content').value.trim();
   const target = document.getElementById('bc-target').value;
-  if (!content) return alert('Enter a message first');
+  if (!content) return toast('Enter a message first','warn');
   const recipients = target==='all'
     ? 'All tenants ('+allTenants.filter(t=>t.active).map(t=>t.short_name).join(', ')+')'
     : allTenants.find(t=>t.id===target)?.short_name||target;
@@ -1356,13 +1686,13 @@ async function confirmBroadcast() {
 
   document.getElementById('bc-preview').style.display='none';
   document.getElementById('bc-content').value='';
-  alert('✅ Preview sent to your phone. Check the Previews tab to confirm sending to tenants.');
+  toast('Preview sent to your phone. Confirm it in the Previews tab.');
   loadPreviews(); loadDashboard();
 }
 
 async function genBroadcast() {
   const context = document.getElementById('bc-content').value.trim();
-  if (!context) return alert('Add some context about what you want to say');
+  if (!context) return toast('Add some context about what you want to say','warn');
   document.getElementById('bc-draft').style.display='block';
   document.getElementById('bc-draft-text').value='Drafting...';
   const target = document.getElementById('bc-target').value;
@@ -1399,7 +1729,7 @@ const NOTICE_FIELD_LABELS = {
   detail:'Details', leaseEnd:'Lease end date', moveoutDate:'Move-out date'
 };
 
-function renderNoticeFields() {
+async function renderNoticeFields() {
   const sel = document.getElementById('nt-template');
   if (!sel) return;
   const tpl = noticeTemplates.find(t=>t.key===sel.value);
@@ -1408,31 +1738,40 @@ function renderNoticeFields() {
   el.innerHTML = `<div class="input-group">${tpl.fields.map(f=>`
     <div><label class="field-label">${NOTICE_FIELD_LABELS[f]||f}</label><input id="nf-${f}" ${f==='date'||f==='leaseEnd'||f==='moveoutDate'?'type="date"':''} /></div>`).join('')}</div>`;
 
-  // Prefill what we can from the selected tenant
-  const tenant = allTenants.find(t=>t.id===document.getElementById('nt-tenant').value);
+  const tenantId = document.getElementById('nt-tenant').value;
+  const tenant = allTenants.find(t=>t.id===tenantId);
   if (!tenant) return;
-  const monthEl = document.getElementById('nf-month');
-  if (monthEl) monthEl.value = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const amtEl = document.getElementById('nf-amount');
-  if (amtEl && sel.value==='rent_leaseholder') amtEl.value = tenant.rent;
-  if (amtEl && (sel.value==='late_rent'||sel.value==='rent_reminder')) amtEl.value = tenant.rent;
-  const feeEl = document.getElementById('nf-lateFee');
-  if (feeEl) feeEl.value = (tenant.rent*0.1).toFixed(2);
-  const leaseEndEl = document.getElementById('nf-leaseEnd');
-  if (leaseEndEl) leaseEndEl.value = tenant.lease_end||'';
-  const moveEl = document.getElementById('nf-moveoutDate');
-  if (moveEl) moveEl.value = tenant.lease_end||'';
+
+  const monthKey = new Date().toISOString().slice(0,7);
+  const monthLabel = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const set = (f, v) => { const e=document.getElementById('nf-'+f); if(e && v!=null) e.value=v; };
+
+  set('month', monthLabel);
+  set('period', monthLabel);
+  set('leaseEnd', tenant.lease_end||'');
+  set('moveoutDate', tenant.lease_end||'');
+  set('date', new Date().toISOString().slice(0,10));
+
+  // Base the amount and late fee on what is actually still owed, not the full rent
+  const owed = await getOwed(tenantId, monthKey);
+  const outstanding = owed ? owed.rentOwed : tenant.rent;
+  if (sel.value === 'late_rent') {
+    set('amount', outstanding.toFixed(2));
+    set('lateFee', Math.min(outstanding*0.1, tenant.rent*0.1).toFixed(2));
+  } else if (sel.value === 'rent_reminder') {
+    set('amount', (outstanding > 0 ? outstanding : tenant.rent).toFixed(2));
+  }
 }
 
 async function buildNotice() {
   const template = document.getElementById('nt-template').value;
   const tenant_id = document.getElementById('nt-tenant').value;
-  if (!tenant_id) return alert('Select a tenant');
+  if (!tenant_id) return toast('Select a tenant','warn');
   const tpl = noticeTemplates.find(t=>t.key===template);
   const fields = {};
   tpl.fields.forEach(f => { const el=document.getElementById('nf-'+f); if(el) fields[f]=el.value; });
   const missing = tpl.fields.filter(f=>!fields[f]);
-  if (missing.length) return alert('Fill in: '+missing.map(f=>NOTICE_FIELD_LABELS[f]||f).join(', '));
+  if (missing.length) return toast('Fill in: '+missing.map(f=>NOTICE_FIELD_LABELS[f]||f).join(', '),'warn');
 
   const res = await api('/api/notices/build',{method:'POST',body:JSON.stringify({template,tenant_id,fields})});
   if (res.content) {
@@ -1450,7 +1789,7 @@ async function sendNotice() {
   if (!content) return;
   await api('/api/notices/send',{method:'POST',body:JSON.stringify({template,tenant_id,content,logIncident})});
   document.getElementById('notice-draft').style.display='none';
-  alert('Preview sent to your phone. Confirm in the Previews tab to deliver it.');
+  toast('Preview sent to your phone. Confirm it in the Previews tab.');
   loadPreviews(); loadDashboard(); loadIncidents();
 }
 
@@ -1473,7 +1812,7 @@ function setIncidentFilter(f, btn) {
 async function saveIncident() {
   const title = document.getElementById('inc-title').value.trim();
   const incident_date = document.getElementById('inc-date').value;
-  if (!title || !incident_date) return alert('Title and date are required');
+  if (!title || !incident_date) return toast('Title and date are required','warn');
 
   let photo = null;
   const pf = document.getElementById('inc-photo');
@@ -1552,6 +1891,204 @@ function exportIncidents() {
   window.open(`/api/incidents/export?tenant_id=${encodeURIComponent(tid)}&token=${encodeURIComponent(TOKEN)}`,'_blank');
 }
 
+// ── PASTE EXTERNAL MESSAGE ────────────────────────
+let pastedAnalysis = null;
+let pastedShots = [];
+
+function togglePasteForm() {
+  const f = document.getElementById('paste-form');
+  f.style.display = f.style.display==='none'?'block':'none';
+  if (f.style.display==='block') {
+    document.getElementById('pm-date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('pm-analysis').style.display='none';
+    pastedAnalysis = null;
+    pastedShots = [];
+    renderShots();
+    bindClipboardPaste();
+  }
+}
+
+function readImage(file) {
+  return new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => resolve({ data: e.target.result, type: file.type || 'image/jpeg', name: file.name || 'screenshot.jpg' });
+    r.readAsDataURL(file);
+  });
+}
+
+async function handleShotPick(ev) {
+  const files = [...(ev.target.files || [])];
+  for (const f of files) pastedShots.push(await readImage(f));
+  renderShots();
+  ev.target.value = '';
+}
+
+// Let the owner paste a screenshot straight from the clipboard
+let clipboardBound = false;
+function bindClipboardPaste() {
+  if (clipboardBound) return;
+  clipboardBound = true;
+  document.addEventListener('paste', async e => {
+    const form = document.getElementById('paste-form');
+    if (!form || form.style.display === 'none') return;
+    const items = [...(e.clipboardData?.items || [])].filter(i => i.type.startsWith('image/'));
+    if (!items.length) return;
+    e.preventDefault();
+    for (const it of items) {
+      const file = it.getAsFile();
+      if (file) pastedShots.push(await readImage(file));
+    }
+    renderShots();
+  });
+}
+
+function renderShots() {
+  const el = document.getElementById('pm-thumbs');
+  if (!el) return;
+  el.innerHTML = pastedShots.map((s, i) => `
+    <div style="position:relative;">
+      <img src="${s.data}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:0.5px solid var(--border);" />
+      <button onclick="removeShot(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;padding:0;border-radius:50%;background:var(--bg);border:0.5px solid var(--border2);font-size:11px;line-height:1;">✕</button>
+    </div>`).join('') + (pastedShots.length ? `<div class="muted" style="align-self:center;margin-left:4px;">${pastedShots.length} attached</div>` : '');
+}
+
+function removeShot(i) { pastedShots.splice(i, 1); renderShots(); }
+
+async function analyzePasted() {
+  const content = document.getElementById('pm-content').value.trim();
+  const tenant_id = document.getElementById('pm-tenant').value;
+  if (!content && !pastedShots.length) return toast('Paste the message text or add a screenshot','warn');
+
+  const btn = document.getElementById('pm-analyze-btn');
+  btn.disabled = true; btn.textContent = pastedShots.length ? 'Reading screenshots...' : 'Reading...';
+
+  const res = await api('/api/messages/analyze',{method:'POST',body:JSON.stringify({
+    tenant_id, content, images: pastedShots.map(s=>({data:s.data, type:s.type}))
+  })});
+  btn.disabled = false; btn.textContent = 'Analyze';
+
+  if (!res.ok) return toast(res.error || 'Could not analyze that message.','err');
+  pastedAnalysis = res.analysis;
+  const a = res.analysis;
+
+  if (a.unreadable) {
+    if (!confirm('The screenshots were hard to read. Review the fields carefully, or cancel and try a clearer image. Continue?')) return;
+  }
+
+  const sevColor = {minor:'var(--text2)',moderate:'var(--amber)',serious:'var(--red)'};
+  const el = document.getElementById('pm-analysis');
+  el.innerHTML = `
+    <hr class="divider">
+    <div class="section-title">Analysis</div>
+
+    ${a.transcript && a.transcript.trim() ? `
+    <label class="field-label">Transcript read from screenshots (edit if it misread anything)</label>
+    <textarea id="pa-transcript" rows="5" style="min-height:100px;margin-bottom:10px;font-size:12px;">${escHtml(a.transcript)}</textarea>` : ''}
+
+    <div class="input-group" style="margin-bottom:8px;">
+      <div><label class="field-label">Title</label><input id="pa-title" value="${escHtml(a.title||'')}" /></div>
+      <div><label class="field-label">Category</label>
+        <select id="pa-category">
+          ${['lease_violation','damage','noise','cleanliness','payment','safety','unauthorized_access','complaint','request','notice','other'].map(c=>`<option value="${c}" ${a.category===c?'selected':''}>${c.replace(/_/g,' ')}</option>`).join('')}
+        </select>
+      </div>
+      <div><label class="field-label">Severity</label>
+        <select id="pa-severity">
+          ${['minor','moderate','serious'].map(s=>`<option value="${s}" ${a.severity===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div><label class="field-label">Lease reference</label><input id="pa-lease" value="${escHtml(a.lease_reference||'')}" /></div>
+    </div>
+
+    <label class="field-label">Summary</label>
+    <textarea id="pa-summary" rows="3" style="min-height:65px;margin-bottom:8px;">${escHtml(a.summary||'')}</textarea>
+
+    ${a.asks && a.asks.length ? `<div style="margin-bottom:8px;">
+      <div class="section-title">What they're asking for</div>
+      ${a.asks.map(x=>`<div style="font-size:12px;padding:2px 0;">• ${escHtml(x)}</div>`).join('')}
+    </div>` : ''}
+
+    <div class="share-box" style="margin-bottom:10px;">
+      <div class="share-row"><span class="muted">Tone</span><span>${escHtml(a.tone||'—')}</span></div>
+      <div class="share-row"><span class="muted">Severity</span><span style="color:${sevColor[a.severity]||'var(--text2)'};">${escHtml(a.severity||'—')}</span></div>
+      <div class="share-row"><span class="muted">Needs your decision</span><span style="color:${a.requires_owner_decision?'var(--amber)':'#97C459'};">${a.requires_owner_decision?'Yes':'No'}</span></div>
+    </div>
+
+    ${a.recommended_action ? `<div class="info-box" style="margin-bottom:8px;"><strong style="color:var(--text);">Suggested next step:</strong> ${escHtml(a.recommended_action)}</div>` : ''}
+    ${a.documentation_note ? `<p class="muted" style="margin-bottom:10px;">${escHtml(a.documentation_note)}</p>` : ''}
+
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--text2);cursor:pointer;">
+      <input type="checkbox" id="pa-thread" checked style="width:auto;margin:0;" />
+      Also add to this tenant's message thread
+    </label>
+
+    <div class="row" style="gap:8px;">
+      <button class="btn-primary" onclick="filePastedMessage()" style="font-size:12px;">Save to incident log</button>
+      <button onclick="draftReplyToPasted()" style="font-size:12px;">Draft a reply</button>
+    </div>
+    <div id="pa-reply" style="display:none;margin-top:10px;"></div>`;
+  el.style.display='block';
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+async function filePastedMessage() {
+  if (!pastedAnalysis) return;
+  const transcriptEl = document.getElementById('pa-transcript');
+  const analysis = {
+    ...pastedAnalysis,
+    transcript: transcriptEl ? transcriptEl.value : (pastedAnalysis.transcript || ''),
+    title: document.getElementById('pa-title').value,
+    category: document.getElementById('pa-category').value,
+    severity: document.getElementById('pa-severity').value,
+    lease_reference: document.getElementById('pa-lease').value,
+    summary: document.getElementById('pa-summary').value,
+  };
+  await api('/api/messages/file',{method:'POST',body:JSON.stringify({
+    tenant_id: document.getElementById('pm-tenant').value,
+    content: document.getElementById('pm-content').value.trim(),
+    received_date: document.getElementById('pm-date').value,
+    source: document.getElementById('pm-source').value,
+    analysis,
+    images: pastedShots.map(s=>({data:s.data, name:s.name})),
+    addToThread: document.getElementById('pa-thread').checked,
+  })});
+  document.getElementById('pm-content').value='';
+  pastedShots = [];
+  togglePasteForm();
+  loadIncidents(); loadInbox(); loadDashboard();
+  toast('Filed to the incident log');
+}
+
+// Draft a reply to the pasted message, routed through Previews like everything else
+async function draftReplyToPasted() {
+  const tenant_id = document.getElementById('pm-tenant').value;
+  const transcriptEl = document.getElementById('pa-transcript');
+  const original = transcriptEl ? transcriptEl.value : document.getElementById('pm-content').value.trim();
+  const summary = document.getElementById('pa-summary').value;
+  const el = document.getElementById('pa-reply');
+  el.style.display='block';
+  el.innerHTML = '<div class="muted">Drafting...</div>';
+
+  const res = await api('/api/draft-message',{method:'POST',body:JSON.stringify({
+    context: `The tenant sent this message: "${original}". Summary of the situation: ${summary}. Draft a professional reply from the landlord that holds the line on lease terms, stays warm but firm, does not concede or renegotiate anything, and does not over-explain.`,
+    targetName: (allTenants.find(t=>t.id===tenant_id)||{}).short_name || 'the tenant'
+  })});
+
+  el.innerHTML = `
+    <label class="field-label">Draft reply (edit freely)</label>
+    <textarea id="pa-reply-text" rows="5" style="min-height:110px;margin-bottom:8px;">${escHtml(res.draft||'')}</textarea>
+    <button class="btn-primary" onclick="previewPastedReply()" style="font-size:12px;">Preview to my phone</button>`;
+}
+
+async function previewPastedReply() {
+  const content = document.getElementById('pa-reply-text').value.trim();
+  const tenant_id = document.getElementById('pm-tenant').value;
+  if (!content) return;
+  await api('/api/previews/create',{method:'POST',body:JSON.stringify({tenant_id, content, type:'reply'})});
+  toast('Preview sent to your phone. Confirm it in the Previews tab.');
+  loadPreviews(); loadDashboard();
+}
+
 // ── MOVE-OUT ──────────────────────────────────────
 function toggleMoveoutForm() {
   const f = document.getElementById('moveout-form');
@@ -1565,7 +2102,7 @@ function toggleMoveoutForm() {
 async function saveMoveout() {
   const tenant_id = document.getElementById('mo-tenant').value;
   const moveout_date = document.getElementById('mo-date').value;
-  if (!tenant_id||!moveout_date) return alert('Tenant and move-out date required');
+  if (!tenant_id||!moveout_date) return toast('Tenant and move-out date required','warn');
   await api('/api/moveouts',{method:'POST',body:JSON.stringify({
     tenant_id, moveout_date,
     notice_received_date: document.getElementById('mo-notice').value||null,
@@ -1685,7 +2222,7 @@ async function toggleMoveoutCheck(id, idx) {
 async function addDeduction(id) {
   const desc = document.getElementById('mo-dd-'+id).value.trim();
   const amt = parseFloat(document.getElementById('mo-da-'+id).value);
-  if (!desc||!amt) return alert('Enter a description and amount');
+  if (!desc||!amt) return toast('Enter a description and amount','warn');
   const list = await api('/api/moveouts');
   const m = list.find(x=>x.id===id);
   const deductions = [...m.deductions, {description:desc, amount:amt}];
@@ -1757,22 +2294,33 @@ async function saveConfig() {
 }
 
 async function addTenant() {
+  const g = id => (document.getElementById('nt-'+id)||{}).value || '';
   const data = {
-    id:document.getElementById('nt-id').value.trim(),
-    name:document.getElementById('nt-name').value.trim(),
-    short_name:document.getElementById('nt-short').value.trim(),
-    phone:document.getElementById('nt-phone').value.trim(),
-    payment_method:document.getElementById('nt-payment').value.trim(),
-    rent:parseFloat(document.getElementById('nt-rent').value),
-    deposit:parseFloat(document.getElementById('nt-rent').value),
-    lease_start:document.getElementById('nt-start').value,
-    lease_end:document.getElementById('nt-end').value,
-    prorated_first:0,
-    initials:document.getElementById('nt-name').value.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+    id: g('id').trim(),
+    name: g('name').trim(),
+    short_name: g('short').trim(),
+    phone: g('phone').trim(),
+    email: g('email').trim(),
+    room: g('room').trim(),
+    payment_method: g('payment').trim(),
+    rent: parseFloat(g('rent')),
+    deposit: parseFloat(g('deposit')) || parseFloat(g('rent')) || 0,
+    employer: g('employer').trim(),
+    move_in_date: g('movein'),
+    lease_start: g('start'),
+    lease_end: g('end'),
+    emergency_name: g('emname').trim(),
+    emergency_phone: g('emphone').trim(),
+    prorated_first: 0,
+    initials: g('name').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
   };
-  if (!data.id||!data.name||!data.phone||!data.rent) return alert('Fill in all required fields');
-  await api('/api/tenants',{method:'POST',body:JSON.stringify(data)});
-  alert('✅ Tenant added!');
+  if (!data.id||!data.name||!data.phone||!data.rent) return toast('ID, name, phone, and rent are required','warn');
+  const res = await api('/api/tenants',{method:'POST',body:JSON.stringify(data)});
+  if (res.error) return toast('Could not add: '+res.error,'err');
+  ['id','name','short','phone','email','room','payment','rent','deposit','employer','movein','start','end','emname','emphone'].forEach(k=>{
+    const el=document.getElementById('nt-'+k); if(el) el.value='';
+  });
+  toast('Tenant added');
   await loadTenants();
   loadDashboard();
 }
