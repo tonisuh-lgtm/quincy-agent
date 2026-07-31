@@ -16,7 +16,27 @@ function isQuietHours() {
   return start > end ? (hour >= start || hour < end) : (hour >= start && hour < end);
 }
 
-async function sendSMS(to, body) {
+// Resolve a phone number to a human name so the log is readable
+function whoIs(number) {
+  if (number === OWNER_PHONE) return { name: 'You (owner)', kind: 'owner' };
+  const t = db.prepare('SELECT short_name FROM tenants WHERE phone = ?').get(number);
+  if (t) return { name: t.short_name, kind: 'tenant' };
+  const p = db.prepare('SELECT short_name FROM service_providers WHERE phone = ?').get(number);
+  if (p) return { name: p.short_name, kind: 'provider' };
+  return { name: 'Unknown number', kind: 'unknown' };
+}
+
+// Single record of every message that leaves or enters the system
+function logMessage({ direction, number, body, status, error, source }) {
+  try {
+    const who = whoIs(number);
+    db.prepare(`INSERT INTO message_log (direction, to_number, recipient_name, recipient_kind, body, status, error, trigger_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      direction, number, who.name, who.kind, body, status || 'sent', error || null, source || null
+    );
+  } catch (e) { console.error('Log write failed:', e.message); }
+}
+
+async function sendSMS(to, body, source) {
   const chunks = [];
   let text = body;
   while (text.length > 300) {
@@ -25,15 +45,26 @@ async function sendSMS(to, body) {
     text = text.slice(split > 0 ? split + 1 : 300);
   }
   chunks.push(text);
-  for (const chunk of chunks) {
-    await client.messages.create({ from: FROM_NUMBER, to, body: chunk });
-    if (chunks.length > 1) await new Promise(r => setTimeout(r, 500));
+  try {
+    for (const chunk of chunks) {
+      await client.messages.create({ from: FROM_NUMBER, to, body: chunk });
+      if (chunks.length > 1) await new Promise(r => setTimeout(r, 500));
+    }
+    logMessage({ direction: 'outbound', number: to, body, status: 'sent', source });
+  } catch (e) {
+    logMessage({ direction: 'outbound', number: to, body, status: 'failed', error: e.message, source });
+    throw e;
   }
 }
 
-async function alertOwner(message) {
-  try { await client.messages.create({ from: FROM_NUMBER, to: OWNER_PHONE, body: message }); }
-  catch (e) { console.error('Owner alert failed:', e.message); }
+async function alertOwner(message, source) {
+  try {
+    await client.messages.create({ from: FROM_NUMBER, to: OWNER_PHONE, body: message });
+    logMessage({ direction: 'outbound', number: OWNER_PHONE, body: message, status: 'sent', source: source || 'owner alert' });
+  } catch (e) {
+    console.error('Owner alert failed:', e.message);
+    logMessage({ direction: 'outbound', number: OWNER_PHONE, body: message, status: 'failed', error: e.message, source: source || 'owner alert' });
+  }
 }
 
 // Preview message to owner before sending to tenant
@@ -43,6 +74,7 @@ async function previewToOwner(content, tenantName, type) {
 }
 
 async function handleInboundSMS(from, body) {
+  logMessage({ direction: 'inbound', number: from, body, status: 'received', source: 'tenant reply' });
   const tenant = db.prepare('SELECT * FROM tenants WHERE phone = ? AND active = 1').get(from);
 
   if (!tenant) {
@@ -152,9 +184,9 @@ async function sendConfirmedPreview(previewId) {
   const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(preview.tenant_id);
   if (!tenant) return;
 
-  await sendSMS(tenant.phone, preview.content);
+  await sendSMS(tenant.phone, preview.content, `confirmed preview: ${preview.type}`);
   db.prepare(`INSERT INTO conversations (tenant_id, direction, content, category, agent_classified) VALUES (?, 'outbound', ?, 'payment', 1)`).run(preview.tenant_id, preview.content);
   db.prepare(`UPDATE message_previews SET status = 'sent' WHERE id = ?`).run(previewId);
 }
 
-module.exports = { sendSMS, alertOwner, handleInboundSMS, sendRentReminder, checkOverdueRent, sendConfirmedPreview, previewToOwner, isQuietHours };
+module.exports = { sendSMS, alertOwner, logMessage, handleInboundSMS, sendRentReminder, checkOverdueRent, sendConfirmedPreview, previewToOwner, isQuietHours };

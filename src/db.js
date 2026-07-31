@@ -194,6 +194,19 @@ db.exec(`
     returned_date TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS message_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction TEXT NOT NULL,
+    to_number TEXT,
+    recipient_name TEXT,
+    recipient_kind TEXT,
+    body TEXT NOT NULL,
+    status TEXT DEFAULT 'sent',
+    error TEXT,
+    trigger_source TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Migrations
@@ -208,6 +221,7 @@ try { db.exec(`CREATE TABLE IF NOT EXISTS incidents (id INTEGER PRIMARY KEY AUTO
 try { db.exec(`CREATE TABLE IF NOT EXISTS moveouts (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, moveout_date TEXT NOT NULL, notice_received_date TEXT, inspection_date TEXT, inspection_notes TEXT, deposit_amount REAL DEFAULT 0, deductions TEXT, final_utilities REAL DEFAULT 0, amount_returned REAL DEFAULT 0, forwarding_address TEXT, status TEXT DEFAULT 'upcoming', returned_date TEXT, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
 
 // Richer tenant profile fields
+try { db.exec(`CREATE TABLE IF NOT EXISTS message_log (id INTEGER PRIMARY KEY AUTOINCREMENT, direction TEXT NOT NULL, to_number TEXT, recipient_name TEXT, recipient_kind TEXT, body TEXT NOT NULL, status TEXT DEFAULT 'sent', error TEXT, trigger_source TEXT, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
 try { db.exec(`ALTER TABLE tenants ADD COLUMN email TEXT`); } catch(e) {}
 try { db.exec(`ALTER TABLE tenants ADD COLUMN room TEXT`); } catch(e) {}
 try { db.exec(`ALTER TABLE tenants ADD COLUMN move_in_date TEXT`); } catch(e) {}

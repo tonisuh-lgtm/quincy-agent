@@ -7,7 +7,7 @@ const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./db');
-const { handleInboundSMS, sendRentReminder, checkOverdueRent, sendSMS, alertOwner, sendConfirmedPreview, previewToOwner } = require('./twilio-handler');
+const { handleInboundSMS, sendRentReminder, checkOverdueRent, sendSMS, alertOwner, sendConfirmedPreview, previewToOwner, logMessage } = require('./twilio-handler');
 const { getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, analyzeExternalMessage } = require('./agent');
 
 const app = express();
@@ -37,6 +37,7 @@ app.post('/webhook/sms', async (req, res) => {
     const provider = db.prepare('SELECT * FROM service_providers WHERE phone = ? AND active = 1').get(from);
     if (provider) {
       db.prepare('INSERT INTO provider_messages (provider_phone, direction, content) VALUES (?, ?, ?)').run(from, 'inbound', body);
+      logMessage({ direction: 'inbound', number: from, body, status: 'received', source: 'provider reply' });
       const activeJob = db.prepare(`SELECT * FROM scheduling_jobs WHERE provider_phone = ? AND status IN ('confirmed','collecting_availability') ORDER BY created_at DESC LIMIT 1`).get(provider.phone);
       const jobRef = activeJob ? ` (Job #${activeJob.id})` : '';
       await alertOwner(`📞 ${provider.name}${jobRef}:\n"${body}"\n\nReply via dashboard → Scheduling`);
@@ -195,7 +196,7 @@ app.post('/api/send', auth, async (req, res) => {
   const { tenant_id, content } = req.body;
   const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id);
   if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
-  await sendSMS(tenant.phone, content);
+  await sendSMS(tenant.phone, content, 'manual reply from dashboard');
   db.prepare(`INSERT INTO conversations (tenant_id, direction, content, agent_classified) VALUES (?, 'outbound', ?, 0)`).run(tenant_id, content);
   res.json({ ok: true });
 });
@@ -206,7 +207,7 @@ app.post('/api/broadcast', auth, async (req, res) => {
     ? db.prepare('SELECT * FROM tenants WHERE active = 1').all()
     : [db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id)].filter(Boolean);
   for (const t of targets) {
-    await sendSMS(t.phone, content);
+    await sendSMS(t.phone, content, 'broadcast');
     db.prepare(`INSERT INTO conversations (tenant_id, direction, content, agent_classified) VALUES (?, 'outbound', ?, 0)`).run(t.id, content);
   }
   res.json({ ok: true, sent: targets.length });
@@ -261,7 +262,30 @@ app.delete('/api/payments/:id', auth, (req, res) => {
 
 // ─── UTILITIES ────────────────────────────────────────────────
 app.get('/api/utilities', auth, (req, res) => {
-  res.json(db.prepare('SELECT id, type, total, tenant_share, owner_share, downstairs_share, period, notes, notified, receipt_url, timestamp FROM utility_bills ORDER BY timestamp DESC').all());
+  const s = currentSplit();
+  const rows = db.prepare('SELECT id, type, total, tenant_share, owner_share, downstairs_share, period, notes, notified, receipt_url, timestamp FROM utility_bills ORDER BY timestamp DESC').all();
+  // Bills logged before the downstairs column existed have nothing stored.
+  // Derive it from the per-person share so older bills still show the figure.
+  res.json(rows.map(b => {
+    let ds = b.downstairs_share || 0;
+    if (b.type === 'water' && !ds && b.tenant_share) {
+      ds = parseFloat((b.tenant_share * s.downstairs).toFixed(2));
+    }
+    return { ...b, downstairs_share: ds, owner_share: b.owner_share || b.tenant_share || 0 };
+  }));
+});
+
+// Everything the owner needs to collect from the downstairs unit, oldest unpaid first
+app.get('/api/utilities/downstairs', auth, (req, res) => {
+  const s = currentSplit();
+  const rows = db.prepare(`SELECT id, type, total, tenant_share, downstairs_share, period, timestamp FROM utility_bills WHERE type = 'water' ORDER BY timestamp DESC`).all();
+  const items = rows.map(b => {
+    let ds = b.downstairs_share || 0;
+    if (!ds && b.tenant_share) ds = parseFloat((b.tenant_share * s.downstairs).toFixed(2));
+    return { id: b.id, period: b.period || '—', total: b.total, amount: ds, timestamp: b.timestamp };
+  }).filter(i => i.amount > 0);
+  const grandTotal = parseFloat(items.reduce((a, b) => a + b.amount, 0).toFixed(2));
+  res.json({ ok: true, occupants: s.downstairs, items, grandTotal });
 });
 
 app.post('/api/utilities/extract', auth, async (req, res) => {
@@ -702,6 +726,51 @@ app.post('/api/messages/file', auth, async (req, res) => {
   res.json({ ok: true, incidentId: result.lastInsertRowid });
 });
 
+// ─── MESSAGE LOG ──────────────────────────────────────────────
+// Every SMS in or out, logged at the transport layer so nothing escapes it
+app.get('/api/log', auth, (req, res) => {
+  const { kind, direction, status, q, limit = 200 } = req.query;
+  let sql = 'SELECT * FROM message_log WHERE 1=1';
+  const params = [];
+  if (kind) { sql += ' AND recipient_kind = ?'; params.push(kind); }
+  if (direction) { sql += ' AND direction = ?'; params.push(direction); }
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+  if (q) { sql += ' AND (body LIKE ? OR recipient_name LIKE ?)'; params.push('%'+q+'%', '%'+q+'%'); }
+  sql += ` ORDER BY id DESC LIMIT ${parseInt(limit)}`;
+  const rows = db.prepare(sql).all(...params);
+
+  const all = db.prepare('SELECT recipient_kind, direction, status, COUNT(*) as c FROM message_log GROUP BY recipient_kind, direction, status').all();
+  const stats = {
+    total: all.reduce((s, r) => s + r.c, 0),
+    toTenants: all.filter(r => r.recipient_kind === 'tenant' && r.direction === 'outbound').reduce((s, r) => s + r.c, 0),
+    toOwner: all.filter(r => r.recipient_kind === 'owner').reduce((s, r) => s + r.c, 0),
+    toProviders: all.filter(r => r.recipient_kind === 'provider' && r.direction === 'outbound').reduce((s, r) => s + r.c, 0),
+    received: all.filter(r => r.direction === 'inbound').reduce((s, r) => s + r.c, 0),
+    failed: all.filter(r => r.status === 'failed').reduce((s, r) => s + r.c, 0),
+  };
+  res.json({ ok: true, stats, rows });
+});
+
+// Cancelled previews: proof of what was drafted but deliberately never sent
+app.get('/api/log/cancelled', auth, (req, res) => {
+  res.json(db.prepare(`SELECT p.*, t.short_name FROM message_previews p LEFT JOIN tenants t ON p.tenant_id = t.id WHERE p.status = 'cancelled' ORDER BY p.id DESC LIMIT 100`).all());
+});
+
+app.get('/api/log/export', auth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM message_log ORDER BY id ASC').all();
+  let out = `MESSAGE LOG\n9 Quincy Pl NE #2, Washington DC 20002\nOwner: Dongyeon Suh / Eastring LLC\nGenerated: ${new Date().toISOString().slice(0,19).replace('T',' ')}\n\n${'='.repeat(70)}\n\n`;
+  rows.forEach(r => {
+    out += `${r.created_at} | ${r.direction.toUpperCase()} | ${r.recipient_name} (${r.recipient_kind}) | ${r.status}\n`;
+    if (r.trigger_source) out += `  Triggered by: ${r.trigger_source}\n`;
+    if (r.error) out += `  Error: ${r.error}\n`;
+    out += `  ${r.body.replace(/\n/g, '\n  ')}\n\n`;
+  });
+  out += `${'='.repeat(70)}\nTotal messages: ${rows.length}\n`;
+  res.set('Content-Type', 'text/plain');
+  res.set('Content-Disposition', 'attachment; filename="message-log.txt"');
+  res.send(out);
+});
+
 // ─── AI DRAFT ─────────────────────────────────────────────────
 app.post('/api/draft-message', auth, async (req, res) => {
   const { context, targetName } = req.body;
@@ -722,7 +791,7 @@ app.get('/api/provider-messages', auth, (req, res) => {
 
 app.post('/api/provider-send', auth, async (req, res) => {
   const { phone, content } = req.body;
-  await sendSMS(phone, content);
+  await sendSMS(phone, content, 'provider portal');
   db.prepare('INSERT INTO provider_messages (provider_phone, direction, content) VALUES (?, ?, ?)').run(phone, 'outbound', content);
   res.json({ ok: true });
 });
