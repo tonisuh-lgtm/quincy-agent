@@ -139,6 +139,62 @@ Respond with ONLY JSON: {"escalate": true|false, "reason": "short reason"}`;
   } catch { return { escalate: false }; }
 }
 
+// Analyze a message received outside the system (personal text, email, in person)
+// Accepts pasted text, screenshots, or both
+async function analyzeExternalMessage(content, tenantName, leaseSummary, images) {
+  const hasImages = Array.isArray(images) && images.length > 0;
+
+  const prompt = `You are assisting a residential landlord in Washington DC. ${hasImages ? `The landlord uploaded ${images.length === 1 ? 'a screenshot' : images.length + ' screenshots'} of messages from a tenant named ${tenantName}.` : `A tenant named ${tenantName} sent the following message outside the property management system.`} The landlord wants it read and filed as a record.
+
+${content ? `ADDITIONAL CONTEXT OR PASTED TEXT:\n"""\n${content}\n"""` : ''}
+
+${leaseSummary ? `RELEVANT LEASE TERMS:\n${leaseSummary.slice(0, 3000)}` : ''}
+
+${hasImages ? `Read the screenshot(s) carefully. Screenshots may show a back-and-forth thread. Focus on what the TENANT said. Messages from the landlord (usually the sender's own side of the conversation) are context only. If the screenshots are in sequence, read them in order.` : ''}
+
+Respond with ONLY a JSON object, no markdown:
+{
+  "transcript": "${hasImages ? 'verbatim text of the tenant messages you can read in the screenshots, with speaker labels like "Tenant:" and "Landlord:" where the thread shows both sides. Preserve wording exactly.' : 'leave as empty string'}",
+  "title": "short factual title, under 10 words",
+  "category": "lease_violation" | "damage" | "noise" | "cleanliness" | "payment" | "safety" | "unauthorized_access" | "complaint" | "request" | "notice" | "other",
+  "severity": "minor" | "moderate" | "serious",
+  "summary": "2-3 sentence neutral factual summary of what the tenant is saying or asking",
+  "lease_reference": "relevant lease paragraph numbers if any apply, else empty string",
+  "asks": ["each specific thing the tenant is requesting or demanding"],
+  "tone": "one short phrase describing tone, e.g. cordial, frustrated, adversarial, negotiating",
+  "requires_owner_decision": true | false,
+  "recommended_action": "one sentence on what the landlord should do next",
+  "documentation_note": "one sentence on why this is or is not worth keeping in the record",
+  "unreadable": true | false
+}
+
+Set "unreadable" to true only if the ${hasImages ? 'screenshots are too blurry or cropped to read' : 'message is empty or meaningless'}. Be neutral and factual. Do not editorialize about the tenant. If the tenant is negotiating or asking for an exception, set requires_owner_decision to true.`;
+
+  try {
+    const messageContent = [];
+    if (hasImages) {
+      images.forEach(img => {
+        messageContent.push({
+          type: 'image',
+          source: { type: 'base64', media_type: img.type || 'image/jpeg', data: img.data }
+        });
+      });
+    }
+    messageContent.push({ type: 'text', text: prompt });
+
+    const res = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: messageContent }]
+    });
+    let text = res.content[0].text.trim().replace(/```json|```/g, '').trim();
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('Message analysis error:', e.message);
+    return null;
+  }
+}
+
 async function classifyMessage(content, tenantName) {
   const config = getConfig();
   const prompt = `Classify this tenant message for a property manager.
@@ -222,4 +278,4 @@ async function generateOwnerSummary(tenant, conversationHistory, classification)
   return res.content[0].text.trim();
 }
 
-module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, getActiveLeaseData, checkEscalation };
+module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, getActiveLeaseData, checkEscalation, analyzeExternalMessage, getActiveLeaseSummary };

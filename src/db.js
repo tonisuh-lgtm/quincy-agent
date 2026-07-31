@@ -207,6 +207,17 @@ try { db.exec(`CREATE TABLE IF NOT EXISTS message_previews (id INTEGER PRIMARY K
 try { db.exec(`CREATE TABLE IF NOT EXISTS incidents (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT, incident_date TEXT NOT NULL, category TEXT NOT NULL, severity TEXT DEFAULT 'minor', title TEXT NOT NULL, description TEXT, lease_reference TEXT, action_taken TEXT, photo_data TEXT, photo_name TEXT, resolved INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
 try { db.exec(`CREATE TABLE IF NOT EXISTS moveouts (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, moveout_date TEXT NOT NULL, notice_received_date TEXT, inspection_date TEXT, inspection_notes TEXT, deposit_amount REAL DEFAULT 0, deductions TEXT, final_utilities REAL DEFAULT 0, amount_returned REAL DEFAULT 0, forwarding_address TEXT, status TEXT DEFAULT 'upcoming', returned_date TEXT, created_at TEXT DEFAULT (datetime('now')))`); } catch(e) {}
 
+// Richer tenant profile fields
+try { db.exec(`ALTER TABLE tenants ADD COLUMN email TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN room TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN move_in_date TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN emergency_name TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN emergency_phone TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN employer TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN notes TEXT`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN status TEXT DEFAULT 'current'`); } catch(e) {}
+try { db.exec(`ALTER TABLE tenants ADD COLUMN deposit_held INTEGER DEFAULT 1`); } catch(e) {}
+
 const seedTenants = () => {
   const existing = db.prepare('SELECT COUNT(*) as count FROM tenants').get();
   if (existing.count > 0) return;
@@ -236,6 +247,8 @@ requests to change payment amounts or due dates`],
     ['quiet_hours_enabled', '1'],
     ['quiet_hours_start', '21'],
     ['quiet_hours_end', '8'],
+    ['downstairs_occupants', '2'],
+    ['owner_shares_utilities', '1'],
     ['custom_rules', `Keep SMS responses under 300 characters. Split longer messages naturally. Never be dismissive. Acknowledge feelings before asking questions. Sign off as: — 9 Quincy Management. Never discuss other tenants. Never reveal owner personal details. Use house-specific locations: bedroom, bathroom, kitchen, living room, entryway/hallway, laundry area, balcony, common areas.
 
 When tenants question utility amounts or request a different split: Reference Paragraph 7 confirming equal split regardless of usage, time in unit, or travel. Bills reflect actual third-party charges. Direct them to contact the utility company directly. Confirm utilities are due the 1st. Never negotiate the split.

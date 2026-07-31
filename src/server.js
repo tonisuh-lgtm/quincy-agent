@@ -8,7 +8,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./db');
 const { handleInboundSMS, sendRentReminder, checkOverdueRent, sendSMS, alertOwner, sendConfirmedPreview, previewToOwner } = require('./twilio-handler');
-const { getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion } = require('./agent');
+const { getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, analyzeExternalMessage } = require('./agent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -228,6 +228,26 @@ app.post('/api/payments', auth, (req, res) => {
   res.json({ ok: true, id: result.lastInsertRowid });
 });
 
+// Log one received transfer allocated across multiple categories at once
+app.post('/api/payments/split', auth, (req, res) => {
+  const { tenant_id, month, note, allocations } = req.body;
+  if (!tenant_id || !month || !Array.isArray(allocations)) return res.status(400).json({ error: 'Missing fields' });
+
+  const stmt = db.prepare(`INSERT INTO payments (tenant_id, amount, type, month, note, confirmed) VALUES (?, ?, ?, ?, ?, 1)`);
+  const created = [];
+  const total = allocations.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+
+  allocations.forEach(a => {
+    const amt = parseFloat(a.amount) || 0;
+    if (amt <= 0) return;
+    const label = note ? `${note} (part of $${total.toFixed(2)} received)` : `Part of $${total.toFixed(2)} received`;
+    const r = stmt.run(tenant_id, amt, a.type, month, label);
+    created.push({ id: r.lastInsertRowid, type: a.type, amount: amt });
+  });
+
+  res.json({ ok: true, created, total: parseFloat(total.toFixed(2)) });
+});
+
 app.patch('/api/payments/:id', auth, (req, res) => {
   const { amount, type, month, note } = req.body;
   db.prepare('UPDATE payments SET amount=?, type=?, month=?, note=? WHERE id=?').run(amount, type, month, note || '', req.params.id);
@@ -250,14 +270,42 @@ app.post('/api/utilities/extract', auth, async (req, res) => {
   res.json({ ok: true, extracted });
 });
 
+// Work out how a bill divides right now, based on who is actually living here
+function currentSplit() {
+  const cfg = getConfig();
+  const tenants = db.prepare('SELECT COUNT(*) as c FROM tenants WHERE active = 1').get().c;
+  const ownerCounts = cfg.owner_shares_utilities !== '0' ? 1 : 0;
+  const downstairs = parseInt(cfg.downstairs_occupants || '2');
+  const upstairs = tenants + ownerCounts;          // people sharing gas / electric / internet
+  const waterTotal = upstairs + downstairs;         // water is shared with the downstairs unit too
+  return {
+    tenants, ownerCounts, downstairs,
+    upstairs: Math.max(1, upstairs),
+    waterTotal: Math.max(1, waterTotal),
+  };
+}
+
+app.get('/api/utilities/split-info', auth, (req, res) => {
+  const s = currentSplit();
+  res.json({
+    ok: true,
+    ...s,
+    explanation: {
+      water: `${s.tenants} tenant${s.tenants===1?'':'s'}${s.ownerCounts?' + you':''} + ${s.downstairs} downstairs = ÷${s.waterTotal}`,
+      other: `${s.tenants} tenant${s.tenants===1?'':'s'}${s.ownerCounts?' + you':''} = ÷${s.upstairs}`,
+    }
+  });
+});
+
 app.post('/api/utilities', auth, async (req, res) => {
   const { type, total, period, notes, receipt } = req.body;
-  const tenantCount = db.prepare('SELECT COUNT(*) as count FROM tenants WHERE active = 1').get().count;
-  const divisors = { water: 5, electricity: 3, gas: 3, internet: 3 };
-  const divisor = divisors[type] || 3;
-  const tenantShare = parseFloat((parseFloat(total) / divisor).toFixed(2));
-  const ownerShare = tenantShare;
-  const downstairsShare = type === 'water' ? parseFloat((parseFloat(total) * 2 / 5).toFixed(2)) : 0;
+  const s = currentSplit();
+  const divisor = type === 'water' ? s.waterTotal : s.upstairs;
+  const amount = parseFloat(total);
+  const perPerson = parseFloat((amount / divisor).toFixed(2));
+  const tenantShare = perPerson;
+  const ownerShare = s.ownerCounts ? perPerson : 0;
+  const downstairsShare = type === 'water' ? parseFloat((perPerson * s.downstairs).toFixed(2)) : 0;
 
   let receipt_url = null;
   let receipt_data = null;
@@ -598,6 +646,62 @@ app.get('/api/moveouts/:id/statement', auth, (req, res) => {
   res.send(out);
 });
 
+// ─── EXTERNAL MESSAGES ────────────────────────────────────────
+// Paste in something a tenant sent outside the system and get it analyzed
+app.post('/api/messages/analyze', auth, async (req, res) => {
+  const { tenant_id, content, images } = req.body;
+  if (!content && (!images || !images.length)) return res.status(400).json({ error: 'Paste a message or upload a screenshot' });
+  const tenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenant_id);
+  const leaseRow = tenant_id ? db.prepare(`SELECT summary FROM lease_documents WHERE tenant_id = ? AND active = 1 ORDER BY uploaded_at DESC LIMIT 1`).get(tenant_id) : null;
+  const cleaned = (images || []).map(img => ({ type: img.type || 'image/jpeg', data: (img.data || '').split(',')[1] || img.data }));
+  const analysis = await analyzeExternalMessage(content || '', tenant ? tenant.short_name : 'the tenant', leaseRow ? leaseRow.summary : null, cleaned);
+  if (!analysis) return res.status(500).json({ error: 'Could not read that. Try a clearer screenshot or paste the text instead.' });
+  res.json({ ok: true, analysis });
+});
+
+// File an analyzed message: creates an incident and optionally adds it to the message thread
+app.post('/api/messages/file', auth, async (req, res) => {
+  const { tenant_id, content, received_date, analysis, source, addToThread, images } = req.body;
+  if (!analysis) return res.status(400).json({ error: 'Missing analysis' });
+
+  const originalText = (analysis.transcript && analysis.transcript.trim()) ? analysis.transcript.trim() : (content || '').trim();
+  const asks = Array.isArray(analysis.asks) && analysis.asks.length ? `\n\nTenant is asking for:\n- ${analysis.asks.join('\n- ')}` : '';
+  const shotNote = images && images.length ? `\nScreenshots attached: ${images.length}` : '';
+  const description = `${analysis.summary}${asks}\n\nTone: ${analysis.tone || 'n/a'}\nReceived via: ${source || 'external'}${shotNote}\n\n--- ORIGINAL MESSAGE ---\n${originalText || '(see attached screenshot)'}`;
+
+  // Keep the first screenshot on the record as visual evidence
+  let photoData = null, photoName = null;
+  if (images && images.length) {
+    photoData = (images[0].data || '').split(',')[1] || images[0].data;
+    photoName = images[0].name || 'screenshot.jpg';
+  }
+
+  const result = db.prepare(`INSERT INTO incidents (tenant_id, incident_date, category, severity, title, description, lease_reference, action_taken, photo_data, photo_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    tenant_id || null,
+    received_date || new Date().toISOString().slice(0, 10),
+    analysis.category || 'other',
+    analysis.severity || 'minor',
+    analysis.title || 'Message received',
+    description,
+    analysis.lease_reference || '',
+    analysis.requires_owner_decision ? 'Awaiting owner decision' : '',
+    photoData, photoName
+  );
+
+  // Optionally mirror it into the conversation thread so the history is complete
+  if (addToThread && tenant_id && originalText) {
+    db.prepare(`INSERT INTO conversations (tenant_id, direction, content, urgency, category, agent_classified, needs_review) VALUES (?, 'inbound', ?, ?, ?, 1, ?)`).run(
+      tenant_id,
+      `[Received via ${source || 'external'}] ${originalText}`,
+      analysis.severity === 'serious' ? 'urgent' : 'routine',
+      analysis.category === 'complaint' ? 'complaint' : (analysis.category || 'general'),
+      analysis.requires_owner_decision ? 1 : 0
+    );
+  }
+
+  res.json({ ok: true, incidentId: result.lastInsertRowid });
+});
+
 // ─── AI DRAFT ─────────────────────────────────────────────────
 app.post('/api/draft-message', auth, async (req, res) => {
   const { context, targetName } = req.body;
@@ -612,6 +716,7 @@ app.post('/api/draft-message', auth, async (req, res) => {
 // ─── PROVIDER MESSAGES ────────────────────────────────────────
 app.get('/api/provider-messages', auth, (req, res) => {
   const { phone } = req.query;
+  if (!phone) return res.json([]);
   res.json(db.prepare('SELECT * FROM provider_messages WHERE provider_phone = ? ORDER BY timestamp ASC').all(phone));
 });
 
@@ -624,10 +729,17 @@ app.post('/api/provider-send', auth, async (req, res) => {
 
 // ─── SCHEDULING ───────────────────────────────────────────────
 app.delete('/api/scheduling/:id', auth, (req, res) => {
-  db.prepare('DELETE FROM scheduling_jobs WHERE id = ?').run(req.params.id);
-  db.prepare('DELETE FROM scheduling_availability WHERE job_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM scheduled_reminders WHERE job_id = ?').run(req.params.id);
-  res.json({ ok: true });
+  try {
+    // Child rows must go first or the foreign key constraint blocks the delete
+    db.prepare('DELETE FROM scheduling_availability WHERE job_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM scheduled_reminders WHERE job_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM message_previews WHERE ref_id = ? AND type IN (?, ?)').run(req.params.id, 'scheduling', 'scheduling_confirm');
+    db.prepare('DELETE FROM scheduling_jobs WHERE id = ?').run(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Delete job failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/scheduling', auth, (req, res) => {
@@ -705,18 +817,42 @@ app.get('/api/tenants', auth, (req, res) => {
 });
 
 app.post('/api/tenants', auth, (req, res) => {
-  const { id, name, short_name, phone, payment_method, rent, deposit, lease_start, lease_end, prorated_first, color, initials } = req.body;
-  db.prepare(`INSERT INTO tenants (id, name, short_name, phone, payment_method, rent, deposit, lease_start, lease_end, prorated_first, color, initials) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    id, name, short_name, phone, payment_method, rent, deposit, lease_start, lease_end, prorated_first || 0, color || '#185FA5', initials || name.slice(0, 2).toUpperCase()
+  const { id, name, short_name, phone, email, room, payment_method, rent, deposit, lease_start, lease_end, move_in_date, prorated_first, emergency_name, emergency_phone, employer, notes, color, initials } = req.body;
+  db.prepare(`INSERT INTO tenants (id, name, short_name, phone, email, room, payment_method, rent, deposit, lease_start, lease_end, move_in_date, prorated_first, emergency_name, emergency_phone, employer, notes, color, initials, status, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'current', 1)`).run(
+    id, name, short_name, phone, email || '', room || '', payment_method, rent, deposit, lease_start, lease_end, move_in_date || lease_start,
+    prorated_first || 0, emergency_name || '', emergency_phone || '', employer || '', notes || '',
+    color || '#185FA5', initials || name.slice(0, 2).toUpperCase()
   );
   res.json({ ok: true });
 });
 
 app.patch('/api/tenants/:id', auth, (req, res) => {
-  const updates = req.body;
+  const allowed = ['name','short_name','phone','email','room','payment_method','rent','deposit','deposit_held','lease_start','lease_end','move_in_date','prorated_first','emergency_name','emergency_phone','employer','notes','status','color','initials','active'];
+  const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
+  if (!Object.keys(updates).length) return res.json({ ok: true });
+  // Keep the legacy active flag in step with status so nothing else breaks
+  if (updates.status && !('active' in updates)) updates.active = updates.status === 'current' ? 1 : 0;
   const fields = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   db.prepare(`UPDATE tenants SET ${fields} WHERE id = ?`).run(...Object.values(updates), req.params.id);
   res.json({ ok: true });
+});
+
+// Permanently remove a tenant and everything attached to them
+app.delete('/api/tenants/:id', auth, (req, res) => {
+  const id = req.params.id;
+  try {
+    db.prepare('DELETE FROM conversations WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM payments WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM lease_documents WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM message_previews WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM incidents WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM moveouts WHERE tenant_id = ?').run(id);
+    db.prepare('DELETE FROM tenants WHERE id = ?').run(id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Delete tenant failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ─── SCHEDULED JOBS ───────────────────────────────────────────
