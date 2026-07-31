@@ -3,59 +3,160 @@ const db = require('./db');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Get all agent config as an object
 function getConfig() {
   const rows = db.prepare('SELECT key, value FROM agent_config').all();
   return rows.reduce((acc, r) => { acc[r.key] = r.value; return acc; }, {});
 }
 
-// Build dynamic tenant context from database
 function getTenantContext() {
   const tenants = db.prepare('SELECT * FROM tenants WHERE active = 1').all();
   return tenants.map(t => {
     const currentMonth = new Date().toISOString().slice(0, 7);
     const paid = db.prepare(`SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE tenant_id = ? AND month = ? AND type = 'rent'`).get(t.id, currentMonth).total;
     const balance = Math.max(0, t.rent - paid);
-    return `- ${t.name} ("${t.short_name}"): $${t.rent}/month, lease ${t.lease_start} to ${t.lease_end}, pays via ${t.payment_method}, phone ${t.phone}. Current month paid: $${paid.toFixed(2)}, balance due: $${balance.toFixed(2)}.`;
+    return `- ${t.name} ("${t.short_name}"): $${t.rent}/month, lease ${t.lease_start} to ${t.lease_end}, pays via ${t.payment_method}. Current month paid: $${paid.toFixed(2)}, balance due: $${balance.toFixed(2)}.`;
   }).join('\n');
 }
 
-// Classify message urgency and category
-async function classifyMessage(content, tenantName) {
-  const config = getConfig();
-  const prompt = `You are classifying a tenant message for a property manager.
+// Get active lease summary for a tenant
+function getActiveLeaseSummary(tenantId) {
+  const lease = db.prepare(`SELECT summary, filename FROM lease_documents WHERE tenant_id = ? AND active = 1 ORDER BY uploaded_at DESC LIMIT 1`).get(tenantId);
+  return lease ? `Active lease: ${lease.filename}\n${lease.summary}` : null;
+}
 
-Tenant: ${tenantName}
-Message: "${content}"
+// Get active lease PDF data for a tenant (for direct reading)
+function getActiveLeaseData(tenantId) {
+  return db.prepare(`SELECT data, filename FROM lease_documents WHERE tenant_id = ? AND active = 1 ORDER BY uploaded_at DESC LIMIT 1`).get(tenantId);
+}
 
-Urgency rules:
-${config.urgency_rules}
+// Summarize a lease PDF using Claude
+async function summarizeLease(pdfBase64, filename) {
+  const prompt = `You are reviewing a residential lease agreement. Extract and summarize the key provisions in a structured format covering:
+1. Parties and property address
+2. Lease term and dates
+3. Rent amount and due date
+4. Late fees
+5. Utilities obligations
+6. Guest policy
+7. Entry rights
+8. Common area rules
+9. Move-out requirements
+10. Security deposit terms
+11. Any special provisions or addenda
 
-Respond with ONLY a JSON object (no markdown, no explanation):
-{
-  "urgency": "emergency" | "urgent" | "routine",
-  "category": "maintenance" | "complaint" | "payment" | "move_out" | "general",
-  "summary": "one sentence summary of the issue",
-  "needs_info": true | false
-}`;
-
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 200,
-    messages: [{ role: 'user', content: prompt }]
-  });
+Be comprehensive but concise. This summary will be used by a property management agent to answer tenant questions accurately.`;
 
   try {
-    return JSON.parse(res.content[0].text.trim());
-  } catch {
-    return { urgency: 'routine', category: 'general', summary: content.slice(0, 100), needs_info: false };
+    const res = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    });
+    return res.content[0].text.trim();
+  } catch(e) {
+    console.error('Lease summary error:', e.message);
+    return 'Lease uploaded but could not be summarized automatically.';
   }
 }
 
-// Generate agent response based on conversation history
+// Extract utility bill total from receipt
+async function extractUtilityTotal(fileData, fileType, filename) {
+  const prompt = `This is a utility bill receipt. Extract:
+1. The total amount due (the final amount to be paid)
+2. The billing period
+3. The utility company name
+4. The service address if visible
+
+Respond with JSON only:
+{"total": 123.45, "period": "June 2026", "company": "Pepco", "address": "9 Quincy Pl NE"}`;
+
+  try {
+    const content = fileType === 'application/pdf'
+      ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fileData } }, { type: 'text', text: prompt }]
+      : [{ type: 'image', source: { type: 'base64', media_type: fileType, data: fileData } }, { type: 'text', text: prompt }];
+
+    const res = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 300,
+      messages: [{ role: 'user', content }]
+    });
+
+    return JSON.parse(res.content[0].text.trim());
+  } catch(e) {
+    console.error('Receipt extraction error:', e.message);
+    return null;
+  }
+}
+
+// Answer a question about a utility bill using the receipt
+async function answerUtilityQuestion(question, receiptData, receiptType, billInfo) {
+  const content = [];
+
+  if (receiptData) {
+    if (receiptType === 'application/pdf') {
+      content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: receiptData } });
+    } else {
+      content.push({ type: 'image', source: { type: 'base64', media_type: receiptType, data: receiptData } });
+    }
+  }
+
+  content.push({ type: 'text', text: `A tenant is asking about a utility bill. Bill info: ${JSON.stringify(billInfo)}. Question: "${question}". Answer based on the receipt and bill information. Be factual and concise. If you cannot determine the answer from the receipt, say so.` });
+
+  const res = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 400,
+    messages: [{ role: 'user', content }]
+  });
+
+  return res.content[0].text.trim();
+}
+
+// Detect whether a message touches an escalate-only topic the agent must not answer
+async function checkEscalation(content) {
+  const config = getConfig();
+  const topics = (config.escalate_topics || '').trim();
+  if (!topics) return { escalate: false };
+
+  const prompt = `A tenant sent this message to a property management agent:
+"${content}"
+
+The agent is FORBIDDEN from answering or taking any position on these topics:
+${topics}
+
+Does this message touch on ANY of those topics, even partially or indirectly? Be strict: if the tenant is asking for an exception, pushing back on a term, or opening a negotiation, that counts.
+
+Respond with ONLY JSON: {"escalate": true|false, "reason": "short reason"}`;
+
+  try {
+    const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 150, messages: [{ role: 'user', content: prompt }] });
+    return JSON.parse(res.content[0].text.trim());
+  } catch { return { escalate: false }; }
+}
+
+async function classifyMessage(content, tenantName) {
+  const config = getConfig();
+  const prompt = `Classify this tenant message for a property manager.
+Tenant: ${tenantName}
+Message: "${content}"
+Urgency rules: ${config.urgency_rules}
+Respond with ONLY JSON (no markdown):
+{"urgency":"emergency"|"urgent"|"routine","category":"maintenance"|"complaint"|"payment"|"lease_question"|"utility_question"|"move_out"|"scheduling"|"general","summary":"one sentence","needs_info":true|false}`;
+
+  const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 200, messages: [{ role: 'user', content: prompt }] });
+  try { return JSON.parse(res.content[0].text.trim()); }
+  catch { return { urgency: 'routine', category: 'general', summary: content.slice(0, 100), needs_info: false }; }
+}
+
 async function generateResponse(tenant, conversationHistory, newMessage, classification) {
   const config = getConfig();
   const tenantContext = getTenantContext();
+  const leaseSummary = getActiveLeaseSummary(tenant.id);
 
   const responseTimeMap = {
     emergency: 'We are treating this as an emergency and escalating immediately. You will hear from us within the hour.',
@@ -67,15 +168,14 @@ async function generateResponse(tenant, conversationHistory, newMessage, classif
     maintenance: config.gather_maintenance,
     complaint: config.gather_complaint,
     payment: config.gather_payment,
-    general: 'Ask any clarifying questions that would help the owner understand the situation.',
-    move_out: 'Ask for their intended move-out date and reason. Remind them of the 40-day written notice requirement per their lease.'
+    scheduling: config.gather_scheduling,
+    lease_question: 'Answer based on the lease summary provided. If uncertain, say the landlord will confirm.',
+    utility_question: 'Answer based on Paragraph 7 of the lease. Direct billing questions to the utility company.',
+    general: 'Ask any clarifying questions that would help the owner.',
+    move_out: 'Ask for intended move-out date. Remind them of the 40-day written notice requirement.'
   };
 
-  const history = conversationHistory.map(m => ({
-    role: m.direction === 'inbound' ? 'user' : 'assistant',
-    content: m.content
-  }));
-
+  const history = conversationHistory.map(m => ({ role: m.direction === 'inbound' ? 'user' : 'assistant', content: m.content }));
   history.push({ role: 'user', content: newMessage });
 
   const systemPrompt = `${config.agent_persona}
@@ -85,60 +185,41 @@ ${config.custom_rules}
 Current tenants:
 ${tenantContext}
 
-Current message classification:
+${leaseSummary ? `Lease on file for ${tenant.short_name}:\n${leaseSummary}` : ''}
+
+Current classification:
 - Urgency: ${classification.urgency}
 - Category: ${classification.category}
-- Response time to communicate: ${responseTimeMap[classification.urgency]}
+- Response time: ${responseTimeMap[classification.urgency]}
 
 ${gatheringInstructions[classification.category] || ''}
 
-Instructions for this response:
-1. If this is the FIRST message in the conversation: acknowledge the message, state the response time, and ask the FIRST most important clarifying question only (not all at once).
-2. If this is a FOLLOW-UP: thank them for the info, acknowledge what they said, ask the next most important question if still needed, or confirm you have enough and will escalate to the owner.
-3. For EMERGENCIES: skip information gathering, tell them help is coming, give emergency contacts if applicable (fire: 911, gas: Washington Gas 1-844-927-4427).
-4. Keep each SMS under 300 characters. If longer, it will be split automatically.
-5. Be warm, professional, never dismissive. Never promise what the owner will do.
-6. Sign off as: "— 9 Quincy Management"`;
+Instructions:
+1. First message: acknowledge, state response time, ask ONE clarifying question only.
+2. Follow-up: thank them, acknowledge, ask next question or confirm info gathered.
+3. Emergency: skip gathering, give immediate help. Fire/gas: 911. Washington Gas: 1-844-927-4427.
+4. Lease questions: answer based on lease summary if available, otherwise say landlord will confirm.
+5. Keep under 300 characters per SMS.
+6. End EVERY response with: "${config.agent_disclosure}"
+7. Sign off as: — 9 Quincy Management`;
 
-  const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 400,
-    system: systemPrompt,
-    messages: history
-  });
-
+  const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 500, system: systemPrompt, messages: history });
   return res.content[0].text.trim();
 }
 
-// Check if conversation has enough info to summarize for owner
 async function shouldEscalate(conversationHistory, category) {
   if (conversationHistory.length < 2) return false;
-  if (category === 'general' && conversationHistory.length >= 2) return true;
-
-  const minExchanges = { maintenance: 3, complaint: 3, payment: 2, move_out: 2, general: 1 };
+  const minExchanges = { maintenance: 3, complaint: 3, payment: 2, move_out: 2, general: 1, lease_question: 1, utility_question: 1, scheduling: 2 };
   return conversationHistory.length >= (minExchanges[category] || 2) * 2;
 }
 
-// Generate a summary for the owner
 async function generateOwnerSummary(tenant, conversationHistory, classification) {
-  const history = conversationHistory.map(m =>
-    `${m.direction === 'inbound' ? tenant.short_name : 'Agent'}: ${m.content}`
-  ).join('\n');
-
-  const prompt = `Summarize this tenant conversation for the landlord in 3-5 bullet points. Be concise and factual. Include: issue, urgency, key details gathered, recommended next action.
-
-Conversation:
-${history}
-
-Respond with plain text bullet points only (use • symbol). No headers.`;
-
+  const history = conversationHistory.map(m => `${m.direction === 'inbound' ? tenant.short_name : 'Agent'}: ${m.content}`).join('\n');
   const res = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    messages: [{ role: 'user', content: prompt }]
+    model: 'claude-sonnet-4-6', max_tokens: 300,
+    messages: [{ role: 'user', content: `Summarize this tenant conversation for the landlord in 3-5 bullet points. Be concise. Include: issue, urgency, key details, recommended next action.\n\nConversation:\n${history}\n\nUse • for bullets. No headers.` }]
   });
-
   return res.content[0].text.trim();
 }
 
-module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig };
+module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, getActiveLeaseData, checkEscalation };
