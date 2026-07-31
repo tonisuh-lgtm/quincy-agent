@@ -6,75 +6,84 @@
 <title>9 Quincy Management</title>
 <style>
   :root {
-    --bg: #0f0f0f; --bg2: #171717; --bg3: #1e1e1e;
-    --text: #f0ede8; --text2: #888; --text3: #555;
-    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
-    --gold: #c8a96e; --gold-dark: #8b6914;
-    --red: #E24B4A; --green: #3B6D11; --amber: #BA7517;
-    --blue: #185FA5; --teal: #0F6E56;
-    --radius: 10px; --radius-lg: 14px;
+    --bg:#0f0f0f;--bg2:#171717;--bg3:#1e1e1e;
+    --text:#f0ede8;--text2:#888;--text3:#555;
+    --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+    --gold:#c8a96e;--gold-dark:#8b6914;
+    --red:#E24B4A;--green:#3B6D11;--amber:#BA7517;
+    --blue:#185FA5;--teal:#0F6E56;
+    --radius:10px;--radius-lg:14px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; }
-  #app { display: none; max-width: 780px; margin: 0 auto; padding: 0 16px 80px; }
-  #login { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .login-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 40px; width: 320px; text-align: center; }
-  .login-box h1 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
-  .login-box p { color: var(--text2); font-size: 13px; margin-bottom: 24px; }
-  input, select, textarea { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 10px 12px; width: 100%; font-family: inherit; outline: none; }
-  input:focus, select:focus, textarea:focus { border-color: var(--border2); }
-  button { background: transparent; border: 0.5px solid var(--border2); border-radius: 8px; color: var(--text2); cursor: pointer; font-size: 13px; font-family: inherit; padding: 8px 16px; transition: all 0.15s; }
-  button:hover { background: var(--bg3); color: var(--text); }
-  .btn-primary { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border: none; color: #0f0f0f; font-weight: 600; }
-  .btn-primary:hover { opacity: 0.9; color: #0f0f0f; }
-  .btn-danger { border-color: var(--red); color: var(--red); }
-  .btn-success { border-color: var(--green); color: #97C459; }
-  .nav { border-bottom: 0.5px solid var(--border); display: flex; gap: 4px; padding: 12px 0 0; position: sticky; top: 0; background: var(--bg); z-index: 10; overflow-x: auto; }
-  .nav-btn { border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; color: var(--text2); display: flex; align-items: center; gap: 6px; padding: 8px 14px; white-space: nowrap; font-size: 13px; }
-  .nav-btn.active { border-bottom-color: var(--gold); color: var(--text); }
-  .badge { background: var(--red); border-radius: 10px; color: white; font-size: 11px; min-width: 18px; padding: 1px 6px; text-align: center; }
-  .page { display: none; padding-top: 24px; }
-  .page.active { display: block; }
-  h2 { font-size: 18px; font-weight: 500; margin-bottom: 16px; }
-  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 12px; }
-  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .metric { background: var(--bg2); border-radius: var(--radius); padding: 1rem; cursor: pointer; }
-  .metric label { color: var(--text2); display: block; font-size: 12px; margin-bottom: 6px; }
-  .metric .val { font-size: 22px; font-weight: 500; }
-  .row { display: flex; align-items: center; gap: 12px; }
-  .row.between { justify-content: space-between; }
-  .row.wrap { flex-wrap: wrap; }
-  .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; flex-shrink: 0; }
-  .tag { border-radius: 10px; font-size: 11px; font-weight: 500; padding: 2px 8px; }
-  .tag-complaint { background: rgba(226,75,74,0.15); color: var(--red); }
-  .tag-maintenance { background: rgba(186,117,23,0.15); color: var(--amber); }
-  .tag-payment { background: rgba(24,95,165,0.15); color: #4CA3DD; }
-  .tag-general { background: var(--bg3); color: var(--text2); }
-  .tag-scheduling { background: rgba(200,169,110,0.15); color: var(--gold); }
-  .tag-emergency { background: rgba(226,75,74,0.25); color: var(--red); font-weight: 700; }
-  .tag-urgent { background: rgba(186,117,23,0.25); color: var(--amber); }
-  .tag-routine { background: var(--bg3); color: var(--text2); }
-  .tag-new { background: rgba(226,75,74,0.15); color: var(--red); }
-  .divider { border: none; border-top: 0.5px solid var(--border); margin: 8px 0; }
-  .progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-  .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .input-group.single { grid-template-columns: 1fr; }
-  label.field-label { color: var(--text2); display: block; font-size: 12px; margin-bottom: 4px; }
-  .muted { color: var(--text2); font-size: 12px; }
-  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .filter-btn { border-radius: 20px; font-size: 12px; padding: 4px 12px; }
-  .filter-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(200,169,110,0.1); }
-  .section-title { color: var(--text2); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
-  .inbound-msg { background: var(--bg2); border-radius: 12px 12px 12px 4px; padding: 10px 14px; max-width: 85%; font-size: 13px; line-height: 1.6; }
-  .outbound-msg { background: rgba(200,169,110,0.12); border: 0.5px solid rgba(200,169,110,0.2); border-radius: 12px 12px 4px 12px; padding: 10px 14px; max-width: 85%; font-size: 13px; line-height: 1.6; margin-left: auto; }
-  .msg-time { color: var(--text3); font-size: 11px; }
-  textarea { resize: vertical; min-height: 80px; }
-  .slot-option { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
-  .slot-option:hover { border-color: var(--gold); }
-  .empty { color: var(--text2); font-size: 14px; text-align: center; padding: 40px 0; }
-  .info-box { background: var(--bg2); border: 0.5px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--text2); }
-  @media (max-width: 500px) { .input-group { grid-template-columns: 1fr; } }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;}
+  #app{display:none;max-width:780px;margin:0 auto;padding:0 16px 80px;}
+  #login{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+  .login-box{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:40px;width:320px;text-align:center;}
+  input,select,textarea{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:10px 12px;width:100%;font-family:inherit;outline:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--border2);}
+  input[type=file]{padding:6px;font-size:12px;}
+  button{background:transparent;border:0.5px solid var(--border2);border-radius:8px;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit;padding:8px 16px;transition:all 0.15s;}
+  button:hover{background:var(--bg3);color:var(--text);}
+  button:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-dark));border:none;color:#0f0f0f;font-weight:600;}
+  .btn-primary:hover{opacity:0.9;color:#0f0f0f;}
+  .btn-danger{border-color:var(--red);color:var(--red);}
+  .btn-success{border-color:var(--green);color:#97C459;}
+  .nav{border-bottom:0.5px solid var(--border);display:flex;gap:2px;padding:12px 0 0;position:sticky;top:0;background:var(--bg);z-index:10;overflow-x:auto;}
+  .nav-btn{border-radius:8px 8px 0 0;border-bottom:2px solid transparent;color:var(--text2);display:flex;align-items:center;gap:5px;padding:7px 11px;white-space:nowrap;font-size:12px;}
+  .nav-btn.active{border-bottom-color:var(--gold);color:var(--text);}
+  .badge{background:var(--red);border-radius:10px;color:white;font-size:10px;min-width:16px;padding:1px 5px;text-align:center;}
+  .badge-amber{background:var(--amber);}
+  .page{display:none;padding-top:20px;}
+  .page.active{display:block;}
+  h2{font-size:18px;font-weight:500;margin-bottom:16px;}
+  .card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:12px;}
+  .card-highlight{border-color:var(--gold);background:rgba(200,169,110,0.05);}
+  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px;}
+  .metric{background:var(--bg2);border-radius:var(--radius);padding:14px;cursor:pointer;border:0.5px solid var(--border);}
+  .metric:hover{border-color:var(--border2);}
+  .metric label{color:var(--text2);display:block;font-size:11px;margin-bottom:5px;}
+  .metric .val{font-size:20px;font-weight:500;}
+  .row{display:flex;align-items:center;gap:10px;}
+  .row.between{justify-content:space-between;}
+  .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;color:white;flex-shrink:0;}
+  .tag{border-radius:10px;font-size:10px;font-weight:500;padding:2px 7px;}
+  .tag-complaint{background:rgba(226,75,74,0.15);color:var(--red);}
+  .tag-maintenance{background:rgba(186,117,23,0.15);color:var(--amber);}
+  .tag-payment{background:rgba(24,95,165,0.15);color:#4CA3DD;}
+  .tag-general{background:var(--bg3);color:var(--text2);}
+  .tag-scheduling{background:rgba(200,169,110,0.15);color:var(--gold);}
+  .tag-lease_question{background:rgba(59,109,17,0.15);color:#97C459;}
+  .tag-utility_question{background:rgba(24,95,165,0.15);color:#4CA3DD;}
+  .tag-emergency{background:rgba(226,75,74,0.25);color:var(--red);font-weight:700;}
+  .tag-urgent{background:rgba(186,117,23,0.25);color:var(--amber);}
+  .tag-routine{background:var(--bg3);color:var(--text2);}
+  .tag-new{background:rgba(226,75,74,0.15);color:var(--red);}
+  .divider{border:none;border-top:0.5px solid var(--border);margin:10px 0;}
+  .progress-bar{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+  .input-group{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  label.field-label{color:var(--text2);display:block;font-size:11px;margin-bottom:3px;}
+  .muted{color:var(--text2);font-size:12px;}
+  .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .filter-btn{border-radius:20px;font-size:11px;padding:3px 10px;}
+  .filter-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(200,169,110,0.1);}
+  .section-title{color:var(--text2);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;}
+  .inbound-msg{background:var(--bg2);border-radius:12px 12px 12px 4px;padding:8px 12px;max-width:85%;font-size:13px;line-height:1.6;border:0.5px solid var(--border);}
+  .outbound-msg{background:rgba(200,169,110,0.1);border:0.5px solid rgba(200,169,110,0.2);border-radius:12px 12px 4px 12px;padding:8px 12px;max-width:85%;font-size:13px;line-height:1.6;margin-left:auto;}
+  .msg-time{color:var(--text3);font-size:10px;margin-top:2px;}
+  textarea{resize:vertical;min-height:70px;}
+  .slot-option{background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s;}
+  .slot-option:hover{border-color:var(--gold);}
+  .empty{color:var(--text2);font-size:13px;text-align:center;padding:32px 0;}
+  .info-box{background:var(--bg2);border:0.5px solid var(--border);border-left:3px solid var(--gold);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text2);}
+  .preview-box{background:var(--bg3);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;margin-bottom:10px;white-space:pre-wrap;}
+  .preview-card{background:var(--bg2);border:1.5px solid var(--amber);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:12px;}
+  .lease-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;}
+  .lease-active{border-color:var(--green);}
+  .share-box{background:var(--bg3);border-radius:8px;padding:12px;margin:10px 0;}
+  .share-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px;}
+  .share-row:last-child{border-bottom:none;font-weight:600;}
 </style>
 </head>
 <body>
@@ -82,9 +91,9 @@
 <div id="login">
   <div class="login-box">
     <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#c8a96e,#8b6914);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#0f0f0f;margin:0 auto 16px;">9Q</div>
-    <h1>9 Quincy Management</h1>
-    <p>Property agent dashboard</p>
-    <input type="password" id="pwd-input" placeholder="Dashboard password" style="margin-bottom:12px;" />
+    <h1 style="font-size:18px;font-weight:500;margin-bottom:6px;">9 Quincy Management</h1>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Property agent dashboard</p>
+    <input type="password" id="pwd-input" placeholder="Password" style="margin-bottom:12px;" />
     <button class="btn-primary" style="width:100%;" onclick="login()">Sign in</button>
     <p id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;">Wrong password.</p>
   </div>
@@ -92,21 +101,24 @@
 
 <div id="app">
   <nav class="nav">
-    <button class="nav-btn active" onclick="showPage('dashboard',this)" data-page="dashboard">🏠 Dashboard</button>
-    <button class="nav-btn" onclick="showPage('inbox',this)" data-page="inbox">📬 Inbox <span class="badge" id="inbox-badge" style="display:none">0</span></button>
-    <button class="nav-btn" onclick="showPage('payments',this)" data-page="payments">💰 Payments</button>
-    <button class="nav-btn" onclick="showPage('utilities',this)" data-page="utilities">⚡ Utilities</button>
-    <button class="nav-btn" onclick="showPage('scheduling',this)" data-page="scheduling">📅 Scheduling</button>
-    <button class="nav-btn" onclick="showPage('broadcast',this)" data-page="broadcast">📣 Broadcast</button>
-    <button class="nav-btn" onclick="showPage('settings',this)" data-page="settings">⚙️ Settings</button>
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">🏠 Home</button>
+    <button class="nav-btn" onclick="showPage('inbox',this)">📬 Inbox <span class="badge" id="inbox-badge" style="display:none">0</span></button>
+    <button class="nav-btn" onclick="showPage('previews',this)">👁 Previews <span class="badge badge-amber" id="preview-badge" style="display:none">0</span></button>
+    <button class="nav-btn" onclick="showPage('notices',this)">📄 Notices</button>
+    <button class="nav-btn" onclick="showPage('payments',this)">💰 Payments</button>
+    <button class="nav-btn" onclick="showPage('utilities',this)">⚡ Utilities</button>
+    <button class="nav-btn" onclick="showPage('incidents',this)">📋 Incidents <span class="badge badge-amber" id="incident-badge" style="display:none">0</span></button>
+    <button class="nav-btn" onclick="showPage('moveout',this)">📦 Move-Out</button>
+    <button class="nav-btn" onclick="showPage('scheduling',this)">📅 Scheduling</button>
+    <button class="nav-btn" onclick="showPage('broadcast',this)">📣 Broadcast</button>
+    <button class="nav-btn" onclick="showPage('settings',this)">⚙️ Settings</button>
   </nav>
 
   <!-- DASHBOARD -->
   <div id="page-dashboard" class="page active">
-    <div style="margin-bottom:20px;">
-      <p class="muted" style="margin-bottom:4px;">9 Quincy Pl NE #2 · Washington DC</p>
-      <h2 style="margin:0;">Overview</h2>
-      <p class="muted" id="dash-month"></p>
+    <div style="margin-bottom:18px;padding-top:6px;">
+      <p class="muted" style="margin-bottom:2px;">9 Quincy Pl NE #2 · Washington DC · Eastring LLC</p>
+      <h2 style="margin:0;font-size:20px;" id="dash-heading">Overview</h2>
     </div>
     <div class="metric-grid" id="dash-metrics"></div>
     <div id="dash-tenants"></div>
@@ -114,30 +126,151 @@
 
   <!-- INBOX -->
   <div id="page-inbox" class="page">
-    <div class="row between" style="margin-bottom:16px;">
+    <div class="row between" style="margin-bottom:14px;">
       <h2 style="margin:0;">Tenant inbox</h2>
     </div>
-    <div class="filter-row" id="inbox-filters">
+    <div class="filter-row">
       <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
       <button class="filter-btn" onclick="setFilter('unread',this)">Needs review</button>
       <button class="filter-btn" onclick="setFilter('complaint',this)">Complaints</button>
       <button class="filter-btn" onclick="setFilter('maintenance',this)">Maintenance</button>
       <button class="filter-btn" onclick="setFilter('payment',this)">Payment</button>
+      <button class="filter-btn" onclick="setFilter('lease_question',this)">Lease Qs</button>
       <button class="filter-btn" onclick="setFilter('scheduling',this)">Scheduling</button>
     </div>
     <div id="inbox-list"></div>
   </div>
 
+  <!-- PREVIEWS -->
+  <div id="page-previews" class="page">
+    <h2>Message previews</h2>
+    <div class="info-box">These messages have been previewed to your phone. Review and confirm each one before it goes to tenants. Nothing is sent until you confirm.</div>
+    <div id="preview-list"></div>
+  </div>
+
+  <!-- NOTICES -->
+  <div id="page-notices" class="page">
+    <h2>Send a notice</h2>
+    <div class="info-box">Pick a notice, fill in the blanks, and it drafts with the right lease paragraph. Every notice previews to your phone and waits for your confirmation before sending.</div>
+    <div class="card">
+      <div class="input-group">
+        <div><label class="field-label">Tenant</label><select id="nt-tenant"></select></div>
+        <div><label class="field-label">Notice type</label><select id="nt-template" onchange="renderNoticeFields()"></select></div>
+      </div>
+      <div id="notice-fields" style="margin-top:6px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:12px;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" id="nt-log" checked style="width:auto;margin:0;" />
+        Also log this to the incident record
+      </label>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="buildNotice()" style="font-size:12px;">Draft notice</button>
+      </div>
+    </div>
+    <div id="notice-draft" style="display:none;" class="preview-card">
+      <p style="font-weight:500;margin-bottom:8px;">Review before sending</p>
+      <textarea id="notice-text" rows="7" style="margin-bottom:10px;min-height:130px;"></textarea>
+      <p class="muted" style="margin-bottom:10px;">Edit freely. This sends a preview to your phone and queues it in Previews for final confirmation.</p>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="sendNotice()" style="font-size:12px;">Preview to my phone</button>
+        <button onclick="document.getElementById('notice-draft').style.display='none'" style="font-size:12px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INCIDENTS -->
+  <div id="page-incidents" class="page">
+    <div class="row between" style="margin-bottom:14px;">
+      <h2 style="margin:0;">Incident log</h2>
+      <button onclick="toggleIncidentForm()" class="btn-primary" style="font-size:12px;">+ Log incident</button>
+    </div>
+    <div class="info-box">Dated record of violations, damage, complaints, and notices. This is what supports a deposit deduction or a non-renewal decision. Text threads alone are weak evidence.</div>
+    <div id="incident-form" style="display:none;" class="card">
+      <div class="input-group">
+        <div><label class="field-label">Tenant</label><select id="inc-tenant"><option value="">Property-wide</option></select></div>
+        <div><label class="field-label">Date</label><input type="date" id="inc-date" /></div>
+        <div><label class="field-label">Category</label>
+          <select id="inc-category">
+            <option value="lease_violation">Lease violation</option>
+            <option value="damage">Property damage</option>
+            <option value="noise">Noise complaint</option>
+            <option value="cleanliness">Cleanliness</option>
+            <option value="payment">Payment issue</option>
+            <option value="safety">Safety concern</option>
+            <option value="unauthorized_access">Unauthorized access</option>
+            <option value="notice">Notice issued</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div><label class="field-label">Severity</label>
+          <select id="inc-severity">
+            <option value="minor">Minor</option>
+            <option value="moderate">Moderate</option>
+            <option value="serious">Serious</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;"><label class="field-label">Title (short summary)</label><input id="inc-title" placeholder="e.g. Roof access via maintenance ladder" /></div>
+      <div style="margin-bottom:8px;"><label class="field-label">What happened</label><textarea id="inc-description" rows="3" placeholder="Facts only. Date, time, what you observed."></textarea></div>
+      <div class="input-group">
+        <div><label class="field-label">Lease reference</label><input id="inc-lease-ref" placeholder="e.g. Paragraph 20, 21" /></div>
+        <div><label class="field-label">Action taken</label><input id="inc-action" placeholder="e.g. Written notice sent" /></div>
+      </div>
+      <div style="margin-bottom:10px;"><label class="field-label">Photo (optional)</label><input type="file" id="inc-photo" accept="image/*" /></div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="saveIncident()" style="font-size:12px;">Save entry</button>
+        <button onclick="toggleIncidentForm()" style="font-size:12px;">Cancel</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setIncidentFilter('',this)">All</button>
+      <button class="filter-btn" id="inc-filter-open" onclick="setIncidentFilter('open',this)">Open</button>
+      <span style="flex:1;"></span>
+      <select id="inc-export-tenant" style="width:auto;font-size:11px;padding:4px 8px;"></select>
+      <button onclick="exportIncidents()" style="font-size:11px;">Export log</button>
+    </div>
+    <div id="incident-list"></div>
+  </div>
+
+  <!-- MOVE-OUT -->
+  <div id="page-moveout" class="page">
+    <div class="row between" style="margin-bottom:14px;">
+      <h2 style="margin:0;">Move-out & deposits</h2>
+      <button onclick="toggleMoveoutForm()" class="btn-primary" style="font-size:12px;">+ Start move-out</button>
+    </div>
+    <div class="info-box">Tracks the inspection window and the 45-day deposit clock. Per your addenda you have up to 30 days to inspect, and the 45-day return clock runs from inspection completion.</div>
+    <div id="moveout-form" style="display:none;" class="card">
+      <div class="input-group">
+        <div><label class="field-label">Tenant</label><select id="mo-tenant"></select></div>
+        <div><label class="field-label">Move-out date</label><input type="date" id="mo-date" /></div>
+        <div><label class="field-label">Notice received</label><input type="date" id="mo-notice" /></div>
+        <div><label class="field-label">Deposit held ($)</label><input type="number" id="mo-deposit" /></div>
+      </div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" onclick="saveMoveout()" style="font-size:12px;">Start tracking</button>
+        <button onclick="toggleMoveoutForm()" style="font-size:12px;">Cancel</button>
+      </div>
+    </div>
+    <div id="moveout-list"></div>
+  </div>
+
   <!-- PAYMENTS -->
   <div id="page-payments" class="page">
-    <div class="row between" style="margin-bottom:16px;">
+    <div class="row between" style="margin-bottom:14px;">
       <h2 style="margin:0;">Payment tracker</h2>
-      <button onclick="togglePaymentForm()" class="btn-primary" style="font-size:13px;">+ Log payment</button>
+      <button onclick="togglePaymentForm()" class="btn-primary" style="font-size:12px;">+ Log payment</button>
     </div>
     <div id="payment-form" style="display:none;" class="card">
       <div class="input-group">
-        <div><label class="field-label">Tenant</label><select id="pf-tenant"><option value="temi">Temi</option><option value="chloe">Chloe</option></select></div>
-        <div><label class="field-label">Type</label><select id="pf-type"><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="deposit">Deposit</option><option value="late_fee">Late fee</option><option value="other">Other</option></select></div>
+        <div><label class="field-label">Tenant</label><select id="pf-tenant"></select></div>
+        <div><label class="field-label">Type</label>
+          <select id="pf-type">
+            <option value="rent">Rent</option>
+            <option value="utilities">Utilities</option>
+            <option value="deposit">Deposit</option>
+            <option value="late_fee">Late fee</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
         <div><label class="field-label">Amount ($)</label><input type="number" id="pf-amount" placeholder="0.00" /></div>
         <div><label class="field-label">Month</label><input type="month" id="pf-month" /></div>
       </div>
@@ -152,170 +285,133 @@
 
   <!-- UTILITIES -->
   <div id="page-utilities" class="page">
-    <div class="row between" style="margin-bottom:16px;">
+    <div class="row between" style="margin-bottom:14px;">
       <h2 style="margin:0;">Utility bills</h2>
-      <button onclick="toggleUtilForm()" class="btn-primary" style="font-size:13px;">+ Add bill</button>
+      <button onclick="toggleUtilForm()" class="btn-primary" style="font-size:12px;">+ Add bill</button>
     </div>
     <div class="info-box">
-      <strong style="color:var(--text);">Split rules:</strong> Water ÷5 (you + Temi + Chloe + 2 downstairs) · Gas / Electricity / Internet ÷3 (you + Temi + Chloe)
+      <strong style="color:var(--text);">Split rules:</strong> Water ÷5 (you + tenants + 2 downstairs) · Gas/Electricity/Internet ÷3 (you + tenants)<br>
+      <span style="color:var(--amber);">Downstairs share shown separately for your Venmo reference.</span>
     </div>
     <div id="util-form" style="display:none;" class="card">
       <div class="input-group">
         <div><label class="field-label">Utility</label>
-          <select id="uf-type">
+          <select id="uf-type" onchange="clearUtilCalc()">
             <option value="water">Water (÷5)</option>
             <option value="electricity">Electricity (÷3)</option>
             <option value="gas">Gas (÷3)</option>
             <option value="internet">Internet (÷3)</option>
           </select>
         </div>
-        <div><label class="field-label">Period (e.g. June 2026)</label><input id="uf-period" placeholder="e.g. June 2026" /></div>
-        <div><label class="field-label">Total bill ($)</label><input type="number" id="uf-amount" placeholder="0.00" /></div>
+        <div><label class="field-label">Period (e.g. July 2026)</label><input id="uf-period" placeholder="e.g. July 2026" /></div>
+        <div><label class="field-label">Total bill ($)</label><input type="number" id="uf-amount" placeholder="0.00" onchange="clearUtilCalc()" /></div>
         <div><label class="field-label">Notes</label><input id="uf-notes" placeholder="Optional" /></div>
       </div>
       <div style="margin-bottom:10px;">
-        <label class="field-label">Receipt (optional — PDF or image)</label>
-        <input type="file" id="uf-receipt" accept="image/*,.pdf" style="font-size:12px;padding:6px;" />
+        <label class="field-label">Upload receipt (photo or PDF) — agent will read it automatically</label>
+        <input type="file" id="uf-receipt" accept="image/*,.pdf" onchange="handleReceiptUpload()" />
+        <div id="uf-reading" style="display:none;color:var(--amber);font-size:12px;margin-top:4px;">Reading receipt...</div>
       </div>
-      <div id="util-calc" style="display:none;background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;"></div>
-      <div class="row" style="gap:8px;">
+      <div id="util-calc" style="display:none;" class="share-box"></div>
+      <div class="row" style="gap:8px;margin-top:8px;">
         <button onclick="calcUtil()">Calculate split</button>
         <button id="util-save-btn" style="display:none;" class="btn-primary" onclick="saveUtil()">Save bill</button>
         <button onclick="toggleUtilForm()">Cancel</button>
       </div>
     </div>
-
-    <!-- Monthly summary -->
     <div id="util-monthly-summary"></div>
-
-    <!-- All bills -->
-    <div style="margin-top:24px;">
-      <div class="section-title">All bills</div>
-      <div id="util-list"></div>
-    </div>
+    <div style="margin-top:20px;"><div class="section-title">All bills</div><div id="util-list"></div></div>
   </div>
 
   <!-- SCHEDULING -->
   <div id="page-scheduling" class="page">
-    <div class="row between" style="margin-bottom:16px;">
-      <h2 style="margin:0;">Scheduling</h2>
-    </div>
-
-    <!-- Service provider portals -->
-    <div style="margin-bottom:20px;">
-      <div class="section-title">Service provider portals</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div class="card" style="cursor:pointer;" onclick="openProviderPortal('mehmet')">
-          <div style="font-weight:500;margin-bottom:4px;">🪲 Mehmet</div>
-          <div class="muted">Pest control · (202) 389-7752</div>
-          <div id="mehmet-badge" style="display:none;margin-top:6px;"><span class="tag tag-new">new msg</span></div>
-        </div>
-        <div class="card" style="cursor:pointer;" onclick="openProviderPortal('stanley')">
-          <div style="font-weight:500;margin-bottom:4px;">🧹 Stanley</div>
-          <div class="muted">Cleaning · (253) 518-8749</div>
-          <div id="stanley-badge" style="display:none;margin-top:6px;"><span class="tag tag-new">new msg</span></div>
-        </div>
+    <h2>Scheduling</h2>
+    <div class="section-title">Service provider portals</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+      <div class="card" style="cursor:pointer;" onclick="openProviderPortal('mehmet')">
+        <div style="font-weight:500;margin-bottom:3px;">🪲 Mehmet</div>
+        <div class="muted">Pest control · (202) 389-7752</div>
+      </div>
+      <div class="card" style="cursor:pointer;" onclick="openProviderPortal('stanley')">
+        <div style="font-weight:500;margin-bottom:3px;">🧹 Stanley</div>
+        <div class="muted">Cleaning · (253) 518-8749</div>
       </div>
     </div>
-
-    <!-- Provider portal modal -->
     <div id="provider-portal" style="display:none;" class="card">
-      <div class="row between" style="margin-bottom:12px;">
+      <div class="row between" style="margin-bottom:10px;">
         <span id="portal-title" style="font-weight:500;"></span>
-        <button onclick="closeProviderPortal()" style="font-size:12px;">Close</button>
+        <button onclick="closeProviderPortal()" style="font-size:11px;">Close</button>
       </div>
-      <div id="portal-messages" style="max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding-bottom:8px;"></div>
-      <textarea id="portal-input" placeholder="Type a message..." rows="2" style="margin-bottom:8px;"></textarea>
-      <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="sendProviderMessage()" style="font-size:13px;">Send</button>
-      </div>
+      <div id="portal-messages" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+      <textarea id="portal-input" placeholder="Type a message..." rows="2" style="margin-bottom:8px;min-height:55px;"></textarea>
+      <button class="btn-primary" onclick="sendProviderMessage()" style="font-size:12px;width:100%;">Send message</button>
     </div>
-
-    <!-- Schedule buttons -->
-    <div class="section-title">Schedule a service</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
-      <button class="btn-primary" style="padding:14px;" onclick="prepareScheduling('cleaning')">🧹 Schedule Cleaning</button>
-      <button class="btn-primary" style="padding:14px;" onclick="prepareScheduling('pest_control')">🪲 Schedule Pest Control</button>
-      <button style="padding:14px;" onclick="showThumbтack()">🔨 Thumbtack Draft</button>
+    <div class="section-title" style="margin-top:18px;">Schedule a service</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;">
+      <button class="btn-primary" style="padding:11px;font-size:12px;" onclick="prepareScheduling('cleaning')">🧹 Cleaning</button>
+      <button class="btn-primary" style="padding:11px;font-size:12px;" onclick="prepareScheduling('pest_control')">🪲 Pest Control</button>
+      <button style="padding:11px;font-size:12px;" onclick="showThumbtack()">🔨 Thumbtack</button>
     </div>
-
-    <!-- Scheduling preview/confirm -->
-    <div id="scheduling-preview" style="display:none;" class="card">
+    <div id="scheduling-preview" style="display:none;" class="card card-highlight">
       <p style="font-weight:500;margin-bottom:4px;">📋 Review before sending</p>
-      <p class="muted" style="margin-bottom:12px;font-size:12px;">Nothing has been sent yet. Review and confirm each message individually.</p>
-      <div id="preview-tenant-msg" style="margin-bottom:12px;">
-        <div class="section-title">Message to tenants</div>
-        <div id="preview-tenant-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:8px;"></div>
-        <div class="row" style="gap:8px;">
-          <button class="btn-primary" id="confirm-tenant-btn" onclick="confirmSendTenants()" style="font-size:12px;">✓ Send to all tenants</button>
-          <button onclick="document.getElementById('scheduling-preview').style.display='none'" style="font-size:12px;">Cancel</button>
-        </div>
-        <div id="tenant-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-top:6px;">✓ Sent to tenants</div>
+      <p class="muted" style="margin-bottom:12px;font-size:11px;">Nothing sent yet. A preview will be sent to your phone first. Confirm each message separately in the Previews tab.</p>
+      <div style="margin-bottom:12px;">
+        <div class="section-title">Message to all tenants</div>
+        <div class="preview-box" id="preview-tenant-text"></div>
+        <div id="tenant-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-bottom:6px;">✓ Preview sent — check Previews tab to confirm</div>
+        <button class="btn-primary" id="confirm-tenant-btn" onclick="confirmSendTenants()" style="font-size:12px;">Send preview to my phone</button>
       </div>
       <hr class="divider">
-      <div id="preview-provider-msg" style="margin-top:12px;">
+      <div style="margin-top:12px;">
         <div class="section-title" id="preview-provider-label">Message to provider</div>
-        <div id="preview-provider-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:8px;"></div>
-        <div class="row" style="gap:8px;">
-          <button class="btn-primary" id="confirm-provider-btn" onclick="confirmSendProvider()" style="font-size:12px;">✓ Send to provider</button>
-          <button onclick="document.getElementById('scheduling-preview').style.display='none'" style="font-size:12px;">Cancel</button>
-        </div>
-        <div id="provider-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-top:6px;">✓ Sent to provider</div>
+        <div class="preview-box" id="preview-provider-text"></div>
+        <div id="provider-sent-confirm" style="display:none;color:var(--green);font-size:12px;margin-bottom:6px;">✓ Sent to provider</div>
+        <button class="btn-primary" id="confirm-provider-btn" onclick="confirmSendProvider()" style="font-size:12px;">Send directly to provider</button>
       </div>
+      <button onclick="document.getElementById('scheduling-preview').style.display='none'" style="margin-top:12px;font-size:11px;width:100%;">Cancel — don't send anything</button>
     </div>
-
     <div id="thumbtack-section" style="display:none;" class="card">
-      <p style="font-weight:500;margin-bottom:10px;">Generate Thumbtack job post</p>
-      <textarea id="tt-issue" placeholder="Describe the issue (e.g. kitchen faucet leaking, need plumber)" style="margin-bottom:10px;"></textarea>
+      <p style="font-weight:500;margin-bottom:8px;">🔨 Generate Thumbtack job post</p>
+      <textarea id="tt-issue" placeholder="Describe the issue (e.g. kitchen faucet leaking)" style="margin-bottom:8px;"></textarea>
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="genThumbтack()">Generate post</button>
-        <button onclick="document.getElementById('thumbtack-section').style.display='none'">Cancel</button>
+        <button class="btn-primary" onclick="genThumbtack()" style="font-size:12px;">Generate</button>
+        <button onclick="document.getElementById('thumbtack-section').style.display='none'" style="font-size:12px;">Cancel</button>
       </div>
-      <div id="tt-result" style="margin-top:12px;display:none;"></div>
+      <div id="tt-result" style="margin-top:10px;display:none;"></div>
     </div>
-    <div id="scheduling-list"></div>
+    <div style="margin-top:20px;"><div class="section-title">Active jobs</div><div id="scheduling-list"></div></div>
   </div>
 
   <!-- BROADCAST -->
   <div id="page-broadcast" class="page">
-    <div class="row between" style="margin-bottom:16px;">
-      <h2 style="margin:0;">Broadcast message</h2>
-    </div>
+    <h2>Broadcast message</h2>
     <div class="card">
-      <div class="input-group">
-        <div>
-          <label class="field-label">Send to</label>
-          <select id="bc-target">
-            <option value="all">All tenants</option>
-          </select>
-        </div>
-        <div></div>
+      <div style="margin-bottom:10px;">
+        <label class="field-label">Send to</label>
+        <select id="bc-target" style="margin-bottom:10px;"></select>
+        <label class="field-label">Message</label>
+        <textarea id="bc-content" placeholder="Type your message..." style="margin-bottom:10px;"></textarea>
       </div>
-      <label class="field-label">Message</label>
-      <textarea id="bc-content" placeholder="Type your message..." style="margin-bottom:10px;"></textarea>
       <div class="row" style="gap:8px;">
         <button class="btn-primary" onclick="previewBroadcast()">Preview & send</button>
-        <button onclick="genBroadcast()">AI draft</button>
+        <button onclick="genBroadcast()" style="font-size:12px;">AI draft</button>
       </div>
     </div>
-
-    <!-- Broadcast preview -->
-    <div id="bc-preview" style="display:none;" class="card">
+    <div id="bc-preview" style="display:none;" class="preview-card">
       <p style="font-weight:500;margin-bottom:4px;">📋 Confirm before sending</p>
-      <div id="bc-preview-recipients" class="muted" style="margin-bottom:8px;font-size:12px;"></div>
-      <div id="bc-preview-text" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;line-height:1.6;margin-bottom:12px;white-space:pre-wrap;"></div>
+      <p id="bc-preview-recipients" class="muted" style="margin-bottom:8px;"></p>
+      <div class="preview-box" id="bc-preview-text"></div>
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="confirmBroadcast()">✓ Confirm & send</button>
-        <button onclick="document.getElementById('bc-preview').style.display='none'">Cancel</button>
+        <button class="btn-primary" onclick="confirmBroadcast()">✓ Send to my phone first, then confirm</button>
+        <button onclick="document.getElementById('bc-preview').style.display='none'" style="font-size:12px;">Cancel</button>
       </div>
     </div>
-
     <div id="bc-draft" style="display:none;" class="card">
-      <p class="muted" style="margin-bottom:8px;">AI draft — edit before sending:</p>
+      <p class="muted" style="margin-bottom:8px;">AI draft — edit then preview:</p>
       <textarea id="bc-draft-text" rows="5" style="margin-bottom:10px;"></textarea>
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" onclick="previewDraft()">Preview & send</button>
-        <button onclick="document.getElementById('bc-draft').style.display='none'">Discard</button>
+        <button class="btn-primary" onclick="previewDraft()" style="font-size:12px;">Preview & send</button>
+        <button onclick="document.getElementById('bc-draft').style.display='none'" style="font-size:12px;">Discard</button>
       </div>
     </div>
   </div>
@@ -323,16 +419,38 @@
   <!-- SETTINGS -->
   <div id="page-settings" class="page">
     <h2>Settings</h2>
-    <div class="card" style="margin-bottom:16px;">
-      <p style="font-weight:500;margin-bottom:12px;">Agent instructions</p>
-      <p class="muted" style="margin-bottom:12px;">Edit how the agent behaves. Changes take effect immediately for all new messages.</p>
-      <div id="config-fields"></div>
-      <button class="btn-primary" onclick="saveConfig()" style="margin-top:12px;">Save instructions</button>
+
+    <!-- Existing tenants -->
+    <div class="card" style="margin-bottom:14px;">
+      <p style="font-weight:500;margin-bottom:12px;">Tenants</p>
+      <div id="tenant-list"></div>
     </div>
+
+    <!-- Lease documents -->
+    <div class="card" style="margin-bottom:14px;">
+      <p style="font-weight:500;margin-bottom:6px;">Lease documents</p>
+      <p class="muted" style="margin-bottom:12px;">Upload executed leases per tenant. The newest upload is automatically set as active and governs. Agent reads active leases to answer tenant questions accurately.</p>
+      <div class="input-group" style="margin-bottom:8px;">
+        <div><label class="field-label">Tenant</label><select id="lease-tenant"></select></div>
+        <div><label class="field-label">Upload lease PDF</label><input type="file" id="lease-file" accept=".pdf" /></div>
+      </div>
+      <button class="btn-primary" id="lease-upload-btn" onclick="uploadLease()" style="font-size:12px;margin-bottom:14px;">Upload & summarize lease</button>
+      <div id="lease-list"></div>
+    </div>
+
+    <!-- Agent instructions -->
+    <div class="card" style="margin-bottom:14px;">
+      <p style="font-weight:500;margin-bottom:6px;">Agent instructions</p>
+      <p class="muted" style="margin-bottom:12px;">Changes apply immediately to all new messages.</p>
+      <div id="config-fields"></div>
+      <button class="btn-primary" onclick="saveConfig()" style="margin-top:10px;" id="save-config-btn">Save instructions</button>
+    </div>
+
+    <!-- Add new tenant -->
     <div class="card">
       <p style="font-weight:500;margin-bottom:12px;">Add new tenant</p>
       <div class="input-group">
-        <div><label class="field-label">ID (short, no spaces)</label><input id="nt-id" placeholder="e.g. sarah" /></div>
+        <div><label class="field-label">ID (no spaces)</label><input id="nt-id" placeholder="e.g. sarah" /></div>
         <div><label class="field-label">Full name</label><input id="nt-name" /></div>
         <div><label class="field-label">Short name</label><input id="nt-short" /></div>
         <div><label class="field-label">Phone (+1...)</label><input id="nt-phone" /></div>
@@ -341,7 +459,7 @@
         <div><label class="field-label">Lease start</label><input type="date" id="nt-start" /></div>
         <div><label class="field-label">Lease end</label><input type="date" id="nt-end" /></div>
       </div>
-      <button class="btn-primary" onclick="addTenant()">Add tenant</button>
+      <button class="btn-primary" onclick="addTenant()" style="font-size:12px;">Add tenant</button>
     </div>
   </div>
 </div>
@@ -351,23 +469,15 @@ let TOKEN = '';
 let inboxFilter = 'all';
 let currentConversations = [];
 let utilCalcResult = null;
-
-const AGENT_SYSTEM = `You are a professional property management agent for 9 Quincy Pl NE #2, Washington DC 20002. Communicate professionally and warmly on behalf of the owner. Keep SMS responses concise. Sign off as: — 9 Quincy Management`;
-
-async function callClaude(messages, system) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 400, system, messages }),
-  });
-  const data = await res.json();
-  return data.content?.[0]?.text || "";
-}
+let allTenants = [];
+let currentSchedulingJobData = null;
+let currentProviderPhone = null;
+let lastThumbtackDraft = '';
 
 // ── AUTH ──────────────────────────────────────────
 async function login() {
   const pwd = document.getElementById('pwd-input').value;
-  const res = await fetch('/api/auth', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password: pwd}) });
+  const res = await fetch('/api/auth', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pwd})});
   if (res.ok) {
     TOKEN = pwd;
     document.getElementById('login').style.display = 'none';
@@ -377,70 +487,261 @@ async function login() {
     document.getElementById('login-error').style.display = 'block';
   }
 }
+document.getElementById('pwd-input').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
 
-document.getElementById('pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-
-const api = async (path, opts = {}) => {
-  const res = await fetch(path, { headers: {'x-dashboard-token': TOKEN, 'Content-Type': 'application/json', ...opts.headers}, ...opts });
+const api = async (path, opts={}) => {
+  const res = await fetch(path, {headers:{'x-dashboard-token':TOKEN,'Content-Type':'application/json',...opts.headers},...opts});
   return res.json();
 };
 
-// ── INIT ──────────────────────────────────────────
 function initApp() {
   loadDashboard();
   loadInbox();
+  loadPreviews();
   loadPayments();
   loadUtilities();
   loadScheduling();
   loadConfig();
   loadTenants();
+  loadLeases();
+  loadNoticeTemplates();
+  loadIncidents();
+  loadMoveouts();
   const m = document.getElementById('pf-month');
   if (m) m.value = new Date().toISOString().slice(0,7);
-  setInterval(() => { loadDashboard(); loadInbox(); }, 30000);
+  setInterval(() => { loadDashboard(); loadInbox(); loadPreviews(); }, 30000);
 }
 
 function showPage(page, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('page-'+page).classList.add('active');
   btn.classList.add('active');
+  if (page === 'previews') loadPreviews();
+  if (page === 'settings') { loadTenants(); loadLeases(); }
+  if (page === 'incidents') loadIncidents();
+  if (page === 'moveout') loadMoveouts();
+  if (page === 'notices') loadNoticeTemplates();
+}
+
+// ── TENANTS ───────────────────────────────────────
+async function loadTenants() {
+  if (!TOKEN) return;
+  allTenants = await api('/api/tenants');
+  const active = allTenants.filter(t=>t.active);
+  const psel = document.getElementById('pf-tenant');
+  if (psel) psel.innerHTML = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+  const bsel = document.getElementById('bc-target');
+  if (bsel) bsel.innerHTML = '<option value="all">All tenants</option>' + active.map(t=>`<option value="${t.id}">${t.short_name} (${t.payment_method})</option>`).join('');
+  const lsel = document.getElementById('lease-tenant');
+  if (lsel) lsel.innerHTML = allTenants.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+
+  const activeOpts = active.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+  const allOpts = allTenants.map(t=>`<option value="${t.id}">${t.short_name}</option>`).join('');
+  const noticeSel = document.getElementById('nt-tenant');
+  if (noticeSel) { noticeSel.innerHTML = activeOpts; noticeSel.onchange = renderNoticeFields; }
+  const incSel = document.getElementById('inc-tenant');
+  if (incSel) incSel.innerHTML = '<option value="">Property-wide</option>' + allOpts;
+  const moSel = document.getElementById('mo-tenant');
+  if (moSel) moSel.innerHTML = activeOpts;
+  const expSel = document.getElementById('inc-export-tenant');
+  if (expSel) expSel.innerHTML = '<option value="">All tenants</option>' + allOpts;
+
+  renderTenantList();
+}
+
+function renderTenantList() {
+  const el = document.getElementById('tenant-list');
+  if (!el) return;
+  if (!allTenants.length) { el.innerHTML='<div class="muted">No tenants yet.</div>'; return; }
+  el.innerHTML = allTenants.map(t=>`
+    <div style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+      <div class="row between">
+        <div class="row" style="gap:8px;">
+          <div class="avatar" style="width:30px;height:30px;background:${t.color};font-size:10px;">${t.initials}</div>
+          <div>
+            <div style="font-weight:500;font-size:13px;">${escHtml(t.name)} ${!t.active?'<span class="tag" style="background:var(--bg3);color:var(--text3);">inactive</span>':''}</div>
+            <div class="muted">${escHtml(t.payment_method||'')} · $${t.rent}/mo · ${escHtml(t.phone)}</div>
+            <div class="muted">Lease: ${t.lease_start||'—'} to ${t.lease_end||'—'}</div>
+          </div>
+        </div>
+        <div class="row" style="gap:6px;">
+          <button onclick="toggleEditTenant('${t.id}')" style="font-size:11px;">✎</button>
+          <button onclick="toggleTenantActive('${t.id}',${t.active})" style="font-size:11px;color:${t.active?'var(--red)':'var(--green)'};">${t.active?'Off':'On'}</button>
+        </div>
+      </div>
+      <div id="tedit-${t.id}" style="display:none;margin-top:10px;background:var(--bg3);border-radius:8px;padding:12px;">
+        <div class="input-group" style="margin-bottom:8px;">
+          <div><label class="field-label">Full name</label><input id="te-name-${t.id}" value="${escHtml(t.name)}" /></div>
+          <div><label class="field-label">Short name</label><input id="te-short-${t.id}" value="${escHtml(t.short_name)}" /></div>
+          <div><label class="field-label">Phone (+1...)</label><input id="te-phone-${t.id}" value="${escHtml(t.phone)}" /></div>
+          <div><label class="field-label">Payment method</label><input id="te-payment-${t.id}" value="${escHtml(t.payment_method||'')}" /></div>
+          <div><label class="field-label">Rent ($)</label><input type="number" id="te-rent-${t.id}" value="${t.rent}" /></div>
+          <div><label class="field-label">Deposit ($)</label><input type="number" id="te-deposit-${t.id}" value="${t.deposit||''}" /></div>
+          <div><label class="field-label">Lease start</label><input type="date" id="te-start-${t.id}" value="${t.lease_start||''}" /></div>
+          <div><label class="field-label">Lease end</label><input type="date" id="te-end-${t.id}" value="${t.lease_end||''}" /></div>
+        </div>
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" onclick="saveTenantEdit('${t.id}')" style="font-size:12px;">Save</button>
+          <button onclick="toggleEditTenant('${t.id}')" style="font-size:12px;">Cancel</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleEditTenant(id) {
+  const el = document.getElementById('tedit-'+id);
+  el.style.display = el.style.display==='none'?'block':'none';
+}
+
+async function saveTenantEdit(id) {
+  const data = {
+    name: document.getElementById('te-name-'+id).value.trim(),
+    short_name: document.getElementById('te-short-'+id).value.trim(),
+    phone: document.getElementById('te-phone-'+id).value.trim(),
+    payment_method: document.getElementById('te-payment-'+id).value.trim(),
+    rent: parseFloat(document.getElementById('te-rent-'+id).value),
+    deposit: parseFloat(document.getElementById('te-deposit-'+id).value)||0,
+    lease_start: document.getElementById('te-start-'+id).value,
+    lease_end: document.getElementById('te-end-'+id).value,
+  };
+  await api(`/api/tenants/${id}`,{method:'PATCH',body:JSON.stringify(data)});
+  toggleEditTenant(id);
+  await loadTenants();
+  loadDashboard();
+  alert('✅ Tenant updated!');
+}
+
+async function toggleTenantActive(id, currentActive) {
+  if (!confirm(`${currentActive?'Deactivate':'Activate'} this tenant?`)) return;
+  await api(`/api/tenants/${id}`,{method:'PATCH',body:JSON.stringify({active:currentActive?0:1})});
+  await loadTenants();
+  loadDashboard();
+}
+
+// ── LEASE DOCUMENTS ───────────────────────────────
+async function loadLeases() {
+  if (!TOKEN) return;
+  const leases = await api('/api/leases');
+  const el = document.getElementById('lease-list');
+  if (!el) return;
+  if (!leases.length) { el.innerHTML='<div class="muted">No leases uploaded yet.</div>'; return; }
+
+  const byTenant = {};
+  leases.forEach(l => { if(!byTenant[l.tenant_id]) byTenant[l.tenant_id]=[]; byTenant[l.tenant_id].push(l); });
+
+  el.innerHTML = Object.entries(byTenant).map(([tid, tleases]) => {
+    const tenant = allTenants.find(t=>t.id===tid);
+    return `
+    <div style="margin-bottom:12px;">
+      <div class="section-title">${tenant?tenant.short_name:tid}</div>
+      ${tleases.map(l=>`
+      <div class="lease-card ${l.active?'lease-active':''}">
+        <div class="row between">
+          <div>
+            <div style="font-size:13px;font-weight:${l.active?'600':'400'};">${escHtml(l.filename)} ${l.active?'<span style="color:var(--green);font-size:11px;">● Active</span>':''}</div>
+            <div class="muted">Uploaded ${fmtTime(l.uploaded_at)}</div>
+            ${l.summary?`<div style="margin-top:6px;font-size:11px;color:var(--text2);max-height:60px;overflow:hidden;text-overflow:ellipsis;">${escHtml(l.summary.slice(0,200))}...</div>`:''}
+          </div>
+          <div class="row" style="gap:6px;flex-shrink:0;">
+            ${!l.active?`<button onclick="activateLease(${l.id})" style="font-size:11px;" class="btn-success">Set active</button>`:''}
+            <button onclick="deleteLease(${l.id})" style="font-size:11px;" class="btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+async function uploadLease() {
+  const tenantId = document.getElementById('lease-tenant').value;
+  const fileInput = document.getElementById('lease-file');
+  if (!fileInput.files.length) return alert('Select a PDF file first');
+
+  const btn = document.getElementById('lease-upload-btn');
+  btn.textContent = 'Reading lease...';
+  btn.disabled = true;
+
+  const file = fileInput.files[0];
+  const data = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  const result = await api('/api/leases', {method:'POST', body:JSON.stringify({tenant_id:tenantId, filename:file.name, data, mime_type:file.type})});
+
+  btn.textContent = 'Upload & summarize lease';
+  btn.disabled = false;
+  fileInput.value = '';
+
+  if (result.ok) {
+    alert('✅ Lease uploaded and summarized! Agent will now reference this lease when answering tenant questions.');
+    loadLeases();
+  }
+}
+
+async function activateLease(id) {
+  await api(`/api/leases/${id}/activate`, {method:'PATCH'});
+  loadLeases();
+}
+
+async function deleteLease(id) {
+  if (!confirm('Delete this lease? This cannot be undone.')) return;
+  await api(`/api/leases/${id}`, {method:'DELETE'});
+  loadLeases();
 }
 
 // ── DASHBOARD ─────────────────────────────────────
 async function loadDashboard() {
+  if (!TOKEN) return;
   const d = await api('/api/dashboard');
-  document.getElementById('dash-month').textContent = new Date(d.currentMonth + '-01').toLocaleDateString('en-US', {month:'long',year:'numeric'});
+  document.getElementById('dash-heading').textContent = new Date(d.currentMonth+'-02').toLocaleDateString('en-US',{month:'long',year:'numeric'});
 
-  // Update badge
-  const badge = document.getElementById('inbox-badge');
-  badge.textContent = d.unread;
-  badge.style.display = d.unread > 0 ? 'inline' : 'none';
+  const inboxBadge = document.getElementById('inbox-badge');
+  inboxBadge.textContent = d.unread;
+  inboxBadge.style.display = d.unread > 0 ? 'inline' : 'none';
+
+  const previewBadge = document.getElementById('preview-badge');
+  previewBadge.textContent = d.pendingPreviews;
+  previewBadge.style.display = d.pendingPreviews > 0 ? 'inline' : 'none';
 
   document.getElementById('dash-metrics').innerHTML = `
-    <div class="metric" onclick="showPage('inbox',document.querySelector('[data-page=inbox]'))">
+    <div class="metric" onclick="showPage('inbox',document.querySelectorAll('.nav-btn')[1])">
       <label>Needs review</label>
       <div class="val" style="color:${d.unread>0?'var(--red)':'var(--text)'};">${d.unread}</div>
     </div>
-    <div class="metric" onclick="showPage('inbox',document.querySelector('[data-page=inbox]'))">
+    <div class="metric" onclick="showPage('previews',document.querySelectorAll('.nav-btn')[2])">
+      <label>Pending previews</label>
+      <div class="val" style="color:${d.pendingPreviews>0?'var(--amber)':'var(--text)'};">${d.pendingPreviews}</div>
+    </div>
+    <div class="metric" onclick="showPage('inbox',document.querySelectorAll('.nav-btn')[1])">
       <label>Open complaints</label>
       <div class="val" style="color:${d.complaints>0?'var(--red)':'var(--text)'};">${d.complaints}</div>
     </div>
-    <div class="metric" onclick="showPage('scheduling',document.querySelector('[data-page=scheduling]'))">
+    <div class="metric" onclick="showPage('incidents',document.querySelectorAll('.nav-btn')[6])">
+      <label>Open incidents</label>
+      <div class="val" style="color:${d.openIncidents>0?'var(--amber)':'var(--text)'};">${d.openIncidents||0}</div>
+    </div>
+    <div class="metric" onclick="showPage('moveout',document.querySelectorAll('.nav-btn')[7])">
+      <label>Move-outs</label>
+      <div class="val" style="color:${d.activeMoveouts>0?'var(--amber)':'var(--text)'};">${d.activeMoveouts||0}</div>
+    </div>
+    <div class="metric" onclick="showPage('scheduling',document.querySelectorAll('.nav-btn')[8])">
       <label>Active jobs</label>
       <div class="val" style="color:${d.pendingScheduling>0?'var(--amber)':'var(--text)'};">${d.pendingScheduling}</div>
-    </div>
-  `;
+    </div>`;
 
   document.getElementById('dash-tenants').innerHTML = d.tenants.map(t => {
-    const pct = Math.min(100, Math.round((t.paid_this_month / t.rent) * 100));
+    const pct = Math.min(100, Math.round((t.paid_this_month/t.rent)*100));
     const owed = t.balance_due;
     return `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="row between" style="margin-bottom:12px;">
-        <div class="row" style="gap:10px;">
-          <div class="avatar" style="width:38px;height:38px;background:${t.color};font-size:12px;">${t.initials}</div>
+    <div class="card">
+      <div class="row between" style="margin-bottom:10px;">
+        <div class="row" style="gap:8px;">
+          <div class="avatar" style="width:36px;height:36px;background:${t.color};font-size:11px;">${t.initials}</div>
           <div>
-            <div style="font-weight:500;">${t.short_name}</div>
+            <div style="font-weight:500;">${t.short_name} ${t.has_lease?'<span style="color:var(--green);font-size:10px;">📄 lease on file</span>':'<span style="color:var(--red);font-size:10px;">⚠️ no lease</span>'}</div>
             <div class="muted">${t.payment_method}</div>
           </div>
         </div>
@@ -449,74 +750,109 @@ async function loadDashboard() {
           <div class="muted">$${t.paid_this_month.toFixed(2)} / $${t.rent.toFixed(2)}</div>
         </div>
       </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${owed>0?'var(--amber)':'var(--green)'}"></div></div>
-      ${t.last_message ? `<div class="muted" style="margin-top:10px;font-size:12px;">Last: "${t.last_message.content.slice(0,60)}${t.last_message.content.length>60?'...':''}"</div>` : ''}
-      <div class="muted" style="margin-top:4px;">Lease ends ${new Date(t.lease_end).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      <div class="progress-bar" style="margin-bottom:6px;"><div class="progress-fill" style="width:${pct}%;background:${owed===0?'var(--green)':'var(--amber)'}"></div></div>
+      ${t.clock?`<div style="font-size:12px;margin-bottom:4px;color:${t.clock.tone==='red'?'var(--red)':t.clock.tone==='amber'?'var(--amber)':'#97C459'};">${t.clock.text}</div>`:''}
+      ${t.leaseClock?`<div style="font-size:11px;margin-bottom:4px;padding:5px 8px;border-radius:5px;background:${t.leaseClock.tone==='red'?'rgba(226,75,74,0.1)':'rgba(186,117,23,0.1)'};color:${t.leaseClock.tone==='red'?'var(--red)':'var(--amber)'};">${t.leaseClock.text}</div>`:''}
+      ${t.last_message?`<div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Last: "${t.last_message.content.slice(0,55)}${t.last_message.content.length>55?'...':''}"</div>`:''}
+      <div class="muted">Lease ends ${new Date(t.lease_end+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
     </div>`;
   }).join('');
 }
 
+// ── MESSAGE PREVIEWS ──────────────────────────────
+async function loadPreviews() {
+  if (!TOKEN) return;
+  const previews = await api('/api/previews');
+  const el = document.getElementById('preview-list');
+  if (!el) return;
+  if (!previews.length) { el.innerHTML='<div class="empty">No pending previews. All clear.</div>'; return; }
+
+  el.innerHTML = previews.map(p=>`
+  <div class="preview-card">
+    <div class="row between" style="margin-bottom:8px;">
+      <div>
+        <span style="font-weight:500;">${p.type.replace(/_/g,' ')}</span>
+        ${p.short_name?`<span class="muted" style="margin-left:6px;">→ ${p.short_name}</span>`:`<span class="muted" style="margin-left:6px;">→ All tenants</span>`}
+      </div>
+      <span class="muted">${fmtTime(p.created_at)}</span>
+    </div>
+    <div class="preview-box">${escHtml(p.content)}</div>
+    <div class="row" style="gap:8px;">
+      <button class="btn-primary" onclick="confirmPreview(${p.id})" style="font-size:12px;">✓ Confirm & send to tenant(s)</button>
+      <button onclick="cancelPreview(${p.id})" style="font-size:12px;color:var(--red);">✕ Cancel</button>
+    </div>
+  </div>`).join('');
+}
+
+async function confirmPreview(id) {
+  if (!confirm('Send this message to tenant(s) now?')) return;
+  await api(`/api/previews/${id}/confirm`, {method:'POST'});
+  loadPreviews();
+  loadDashboard();
+  alert('✅ Sent!');
+}
+
+async function cancelPreview(id) {
+  await api(`/api/previews/${id}/cancel`, {method:'POST'});
+  loadPreviews();
+  loadDashboard();
+}
+
 // ── INBOX ─────────────────────────────────────────
 async function loadInbox() {
+  if (!TOKEN) return;
   let url = '/api/conversations?limit=60';
-  if (inboxFilter === 'unread') url += '&needs_review=1';
-  else if (['complaint','maintenance','payment','scheduling'].includes(inboxFilter)) url += `&category=${inboxFilter}`;
+  if (inboxFilter==='unread') url+='&needs_review=1';
+  else if (['complaint','maintenance','payment','scheduling','lease_question'].includes(inboxFilter)) url+=`&category=${inboxFilter}`;
   currentConversations = await api(url);
   renderInbox();
 }
 
 function setFilter(f, btn) {
   inboxFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   loadInbox();
 }
 
 function renderInbox() {
   const el = document.getElementById('inbox-list');
-  if (!currentConversations.length) { el.innerHTML = '<div class="empty">No messages.</div>'; return; }
-
-  // Group by tenant conversation threads
+  if (!currentConversations.length) { el.innerHTML='<div class="empty">No messages.</div>'; return; }
   const grouped = {};
-  currentConversations.forEach(m => {
-    if (!grouped[m.tenant_id]) grouped[m.tenant_id] = [];
-    grouped[m.tenant_id].push(m);
-  });
+  currentConversations.forEach(m => { if(!grouped[m.tenant_id]) grouped[m.tenant_id]=[]; grouped[m.tenant_id].push(m); });
 
-  el.innerHTML = Object.entries(grouped).map(([tid, msgs]) => {
+  el.innerHTML = Object.entries(grouped).map(([tid,msgs]) => {
     const latest = msgs[0];
-    const unread = msgs.filter(m => m.needs_review && !m.reviewed).length;
+    const unread = msgs.filter(m=>m.needs_review&&!m.reviewed).length;
     return `
-    <div class="card" style="border-left:3px solid ${latest.color};">
-      <div class="row between" style="margin-bottom:10px;">
-        <div class="row" style="gap:8px;">
-          <div class="avatar" style="width:32px;height:32px;background:${latest.color};font-size:11px;">${latest.initials}</div>
-          <span style="font-weight:500;">${latest.short_name}</span>
-          ${unread>0?`<span class="tag tag-new">+${unread} new</span>`:''}
-          <span class="tag tag-${latest.urgency||'routine'}">${latest.urgency||'routine'}</span>
-        </div>
+    <div class="card" style="border-left:3px solid ${latest.color};margin-bottom:10px;">
+      <div class="row between" style="margin-bottom:8px;">
         <div class="row" style="gap:6px;">
-          ${unread>0?`<button onclick="markAllReviewed('${tid}')" style="font-size:11px;">Mark read</button>`:''}
+          <div class="avatar" style="width:28px;height:28px;background:${latest.color};font-size:10px;">${latest.initials}</div>
+          <span style="font-weight:500;font-size:13px;">${latest.short_name}</span>
+          ${unread>0?`<span class="tag tag-new">${unread} new</span>`:''}
+          <span class="tag tag-${latest.urgency||'routine'}">${latest.urgency||'routine'}</span>
+          <span class="tag tag-${latest.category||'general'}">${(latest.category||'general').replace('_',' ')}</span>
         </div>
+        ${unread>0?`<button onclick="markAllReviewed('${tid}')" style="font-size:10px;">Mark read</button>`:''}
       </div>
-      <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;">
-        ${[...msgs].reverse().map(m => `
+      <div style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:6px;">
+        ${[...msgs].reverse().map(m=>`
           <div>
             <div class="${m.direction==='inbound'?'inbound-msg':'outbound-msg'}">${escHtml(m.content)}</div>
             <div class="msg-time" style="${m.direction==='outbound'?'text-align:right;':''}">${fmtTime(m.timestamp)}</div>
-          </div>
-        `).join('')}
+          </div>`).join('')}
       </div>
       <hr class="divider">
-      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
-        <button onclick="openReply('${tid}')" class="btn-primary" style="font-size:12px;">Reply</button>
-        ${msgs.some(m=>m.category==='complaint'&&!m.resolved)?`<button onclick="resolveComplaint('${msgs.find(m=>m.category==='complaint'&&!m.resolved)?.id}')" class="btn-success" style="font-size:12px;">Resolve complaint</button>`:''}
+      <div class="row" style="gap:6px;flex-wrap:wrap;">
+        <button onclick="openReply('${tid}')" class="btn-primary" style="font-size:11px;">Reply</button>
+        ${msgs.some(m=>m.category==='complaint'&&!m.resolved)?`<button onclick="resolveComplaint('${msgs.find(m=>m.category==='complaint'&&!m.resolved)?.id}')" class="btn-success" style="font-size:11px;">Resolve</button>`:''}
       </div>
-      <div id="reply-${tid}" style="display:none;margin-top:10px;">
-        <textarea id="reply-text-${tid}" placeholder="Your message to ${latest.short_name}..." rows="3" style="margin-bottom:8px;"></textarea>
-        <div class="row" style="gap:8px;">
-          <button class="btn-primary" onclick="sendReply('${tid}')" style="font-size:12px;">Send via agent</button>
-          <button onclick="closeReply('${tid}')" style="font-size:12px;">Cancel</button>
+      <div id="reply-${tid}" style="display:none;margin-top:8px;">
+        <textarea id="reply-text-${tid}" placeholder="Reply to ${latest.short_name}..." rows="2" style="margin-bottom:6px;min-height:55px;"></textarea>
+        <div class="row" style="gap:6px;">
+          <button class="btn-primary" onclick="sendReply('${tid}')" style="font-size:11px;">Send</button>
+          <button onclick="closeReply('${tid}')" style="font-size:11px;">Cancel</button>
         </div>
       </div>
     </div>`;
@@ -529,91 +865,86 @@ function closeReply(tid) { document.getElementById('reply-'+tid).style.display='
 async function sendReply(tid) {
   const content = document.getElementById('reply-text-'+tid).value.trim();
   if (!content) return;
-  await api('/api/send', {method:'POST', body: JSON.stringify({tenant_id:tid, content})});
+  await api('/api/send',{method:'POST',body:JSON.stringify({tenant_id:tid,content})});
   document.getElementById('reply-text-'+tid).value='';
   closeReply(tid);
   loadInbox();
 }
 
 async function markAllReviewed(tid) {
-  const msgs = currentConversations.filter(m => m.tenant_id===tid && m.needs_review && !m.reviewed);
-  for (const m of msgs) await api(`/api/conversations/${m.id}/review`, {method:'POST'});
-  loadInbox();
-  loadDashboard();
+  const msgs = currentConversations.filter(m=>m.tenant_id===tid&&m.needs_review&&!m.reviewed);
+  for (const m of msgs) await api(`/api/conversations/${m.id}/review`,{method:'POST'});
+  loadInbox(); loadDashboard();
 }
 
 async function resolveComplaint(id) {
-  await api(`/api/conversations/${id}/resolve`, {method:'POST'});
-  loadInbox();
-  loadDashboard();
+  await api(`/api/conversations/${id}/resolve`,{method:'POST'});
+  loadInbox(); loadDashboard();
 }
 
 // ── PAYMENTS ──────────────────────────────────────
 function togglePaymentForm() {
   const f = document.getElementById('payment-form');
-  f.style.display = f.style.display==='none' ? 'block' : 'none';
-  if (f.style.display==='block') {
-    const m = document.getElementById('pf-month');
-    m.value = new Date().toISOString().slice(0,7);
-  }
+  f.style.display = f.style.display==='none'?'block':'none';
+  if (f.style.display==='block') document.getElementById('pf-month').value=new Date().toISOString().slice(0,7);
 }
 
 async function savePayment() {
   const data = {
-    tenant_id: document.getElementById('pf-tenant').value,
-    amount: document.getElementById('pf-amount').value,
-    type: document.getElementById('pf-type').value,
-    month: document.getElementById('pf-month').value,
-    note: document.getElementById('pf-note').value,
+    tenant_id:document.getElementById('pf-tenant').value,
+    amount:document.getElementById('pf-amount').value,
+    type:document.getElementById('pf-type').value,
+    month:document.getElementById('pf-month').value,
+    note:document.getElementById('pf-note').value,
   };
   if (!data.amount) return alert('Enter an amount');
-  await api('/api/payments', {method:'POST', body: JSON.stringify(data)});
+  await api('/api/payments',{method:'POST',body:JSON.stringify(data)});
+  document.getElementById('pf-amount').value='';
+  document.getElementById('pf-note').value='';
   togglePaymentForm();
-  loadPayments();
-  loadDashboard();
+  loadPayments(); loadDashboard();
 }
 
 async function loadPayments() {
+  if (!TOKEN) return;
   const payments = await api('/api/payments');
   const byMonth = {};
-  payments.forEach(p => {
-    if (!byMonth[p.month]) byMonth[p.month] = [];
-    byMonth[p.month].push(p);
-  });
-
+  payments.forEach(p => { if(!byMonth[p.month]) byMonth[p.month]=[]; byMonth[p.month].push(p); });
   const el = document.getElementById('payments-list');
-  if (!payments.length) { el.innerHTML = '<div class="empty">No payments logged yet.</div>'; return; }
+  if (!payments.length) { el.innerHTML='<div class="empty">No payments logged yet.</div>'; return; }
 
-  el.innerHTML = Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).map(([month, ps]) => {
+  el.innerHTML = Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).map(([month,ps]) => {
     const label = new Date(month+'-02').toLocaleDateString('en-US',{month:'long',year:'numeric'});
-    const temiPaid = ps.filter(p=>p.tenant_id==='temi'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
-    const chloePaid = ps.filter(p=>p.tenant_id==='chloe'&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
-    const temiRent = 1850, chloeRent = 1750;
+    const summaries = allTenants.filter(t=>t.active).map(t => {
+      const paid = ps.filter(p=>p.tenant_id===t.id&&p.type==='rent').reduce((s,p)=>s+p.amount,0);
+      const owed = Math.max(0,t.rent-paid);
+      return `<span style="color:${owed>0?'var(--amber)':'var(--green)'};">${t.short_name} ${owed>0?`$${owed.toFixed(2)} due`:'✓'}</span>`;
+    }).join(' · ');
     return `
-    <div style="margin-bottom:24px;">
-      <div class="row between" style="margin-bottom:10px;">
+    <div style="margin-bottom:20px;">
+      <div class="row between" style="margin-bottom:8px;">
         <span style="font-weight:500;">${label}</span>
-        <span class="muted">Temi ${temiPaid>=temiRent?'✓ paid':`$${(temiRent-temiPaid).toFixed(2)} due`} · Chloe ${chloePaid>=chloeRent?'✓ paid':`$${(chloeRent-chloePaid).toFixed(2)} due`}</span>
+        <span class="muted" style="font-size:11px;">${summaries}</span>
       </div>
       ${ps.map(p=>`
       <div id="prow-${p.id}">
-        <div class="row between" style="padding:10px 0;border-bottom:0.5px solid var(--border);">
-          <div class="row" style="gap:10px;">
-            <div class="avatar" style="width:30px;height:30px;background:${p.color};font-size:10px;">${p.initials}</div>
+        <div class="row between" style="padding:8px 0;border-bottom:0.5px solid var(--border);">
+          <div class="row" style="gap:8px;">
+            <div class="avatar" style="width:26px;height:26px;background:${p.color};font-size:9px;">${p.initials}</div>
             <div>
               <span style="font-weight:500;">$${p.amount.toFixed(2)}</span>
               <span class="muted"> · ${p.type} · ${p.month}</span>
-              ${p.note?`<div class="muted">${p.note}</div>`:''}
+              ${p.note?`<div class="muted">${escHtml(p.note)}</div>`:''}
             </div>
           </div>
-          <div class="row" style="gap:8px;">
-            <span class="muted">${fmtTime(p.timestamp)}</span>
-            <button onclick="toggleEditPayment(${p.id})" style="font-size:11px;color:var(--text2);border:none;padding:4px;">✎</button>
-            <button onclick="deletePayment(${p.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;">✕</button>
+          <div class="row" style="gap:4px;">
+            <span class="muted" style="font-size:10px;">${fmtTime(p.timestamp)}</span>
+            <button onclick="toggleEditPayment(${p.id})" style="font-size:10px;color:var(--text2);border:none;padding:3px;">✎</button>
+            <button onclick="deletePayment(${p.id})" style="font-size:10px;color:var(--text3);border:none;padding:3px;">✕</button>
           </div>
         </div>
-        <div id="pedit-${p.id}" style="display:none;padding:10px;background:var(--bg3);border-radius:8px;margin:4px 0 8px;">
-          <div class="input-group" style="margin-bottom:8px;">
+        <div id="pedit-${p.id}" style="display:none;padding:8px;background:var(--bg3);border-radius:8px;margin:4px 0 6px;">
+          <div class="input-group" style="margin-bottom:6px;">
             <div><label class="field-label">Amount</label><input type="number" id="pe-amount-${p.id}" value="${p.amount}" /></div>
             <div><label class="field-label">Type</label>
               <select id="pe-type-${p.id}">
@@ -625,11 +956,11 @@ async function loadPayments() {
               </select>
             </div>
             <div><label class="field-label">Month</label><input type="month" id="pe-month-${p.id}" value="${p.month}" /></div>
-            <div><label class="field-label">Note</label><input id="pe-note-${p.id}" value="${p.note||''}" /></div>
+            <div><label class="field-label">Note</label><input id="pe-note-${p.id}" value="${escHtml(p.note||'')}" /></div>
           </div>
-          <div class="row" style="gap:8px;">
-            <button class="btn-primary" onclick="saveEditPayment(${p.id},'${p.tenant_id}')" style="font-size:12px;">Save</button>
-            <button onclick="toggleEditPayment(${p.id})" style="font-size:12px;">Cancel</button>
+          <div class="row" style="gap:6px;">
+            <button class="btn-primary" onclick="saveEditPayment(${p.id})" style="font-size:11px;">Save</button>
+            <button onclick="toggleEditPayment(${p.id})" style="font-size:11px;">Cancel</button>
           </div>
         </div>
       </div>`).join('')}
@@ -637,56 +968,63 @@ async function loadPayments() {
   }).join('');
 }
 
-async function deleteUtil(id) {
-  if (!confirm('Delete this utility bill?')) return;
-  await api(`/api/utilities/${id}`, {method:'DELETE'});
-  loadUtilities();
+function toggleEditPayment(id) {
+  const el = document.getElementById('pedit-'+id);
+  el.style.display = el.style.display==='none'?'block':'none';
 }
 
-async function notifyUtil(id) {
-  if (!confirm('Send utility bill notification to both tenants now?')) return;
-  await api(`/api/utilities/${id}/notify`, {method:'POST'});
-  alert('✅ Tenants notified!');
-  loadUtilities();
-}
-
-async function notifyAllUtil(period) {
-  if (!confirm(`Send combined utility summary for ${period} to both tenants?`)) return;
-  const res = await api(`/api/utilities/notify-all?period=${encodeURIComponent(period)}`, {method:'POST'});
-  if (res.ok) { alert('✅ Combined utility summary sent to both tenants!'); loadUtilities(); }
+async function saveEditPayment(id) {
+  const data = {
+    amount:parseFloat(document.getElementById('pe-amount-'+id).value),
+    type:document.getElementById('pe-type-'+id).value,
+    month:document.getElementById('pe-month-'+id).value,
+    note:document.getElementById('pe-note-'+id).value,
+  };
+  await api(`/api/payments/${id}`,{method:'PATCH',body:JSON.stringify(data)});
+  loadPayments(); loadDashboard();
 }
 
 async function deletePayment(id) {
   if (!confirm('Delete this payment?')) return;
-  await api(`/api/payments/${id}`, {method:'DELETE'});
-  loadPayments();
-  loadDashboard();
-}
-
-function toggleEditPayment(id) {
-  const el = document.getElementById('pedit-'+id);
-  el.style.display = el.style.display==='none' ? 'block' : 'none';
-}
-
-async function saveEditPayment(id, tenantId) {
-  const data = {
-    amount: parseFloat(document.getElementById('pe-amount-'+id).value),
-    type: document.getElementById('pe-type-'+id).value,
-    month: document.getElementById('pe-month-'+id).value,
-    note: document.getElementById('pe-note-'+id).value,
-  };
-  await api(`/api/payments/${id}`, {method:'PATCH', body:JSON.stringify(data)});
-  loadPayments();
-  loadDashboard();
+  await api(`/api/payments/${id}`,{method:'DELETE'});
+  loadPayments(); loadDashboard();
 }
 
 // ── UTILITIES ─────────────────────────────────────
-function toggleUtilForm() {
-  const f = document.getElementById('util-form');
-  f.style.display = f.style.display==='none' ? 'block' : 'none';
+function clearUtilCalc() {
+  utilCalcResult = null;
   document.getElementById('util-calc').style.display='none';
   document.getElementById('util-save-btn').style.display='none';
-  utilCalcResult = null;
+}
+
+function toggleUtilForm() {
+  const f = document.getElementById('util-form');
+  f.style.display = f.style.display==='none'?'block':'none';
+  clearUtilCalc();
+}
+
+async function handleReceiptUpload() {
+  const fileInput = document.getElementById('uf-receipt');
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  document.getElementById('uf-reading').style.display='block';
+
+  const data = await new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.readAsDataURL(file);
+  });
+
+  const result = await api('/api/utilities/extract', {method:'POST', body:JSON.stringify({data, type:file.type, name:file.name})});
+  document.getElementById('uf-reading').style.display='none';
+
+  if (result.extracted) {
+    const ex = result.extracted;
+    if (ex.total) document.getElementById('uf-amount').value = ex.total;
+    if (ex.period) document.getElementById('uf-period').value = ex.period;
+    alert(`✅ Receipt read! Extracted: $${ex.total} for ${ex.period||'period'} from ${ex.company||'utility company'}. Review and calculate split.`);
+    calcUtil();
+  }
 }
 
 function calcUtil() {
@@ -695,10 +1033,22 @@ function calcUtil() {
   if (!amt) return alert('Enter a bill amount');
   const divisors = {water:5,electricity:3,gas:3,internet:3};
   const d = divisors[type]||3;
-  const share = (amt/d).toFixed(2);
-  utilCalcResult = {type, total:amt, period:document.getElementById('uf-period').value, notes:document.getElementById('uf-notes').value, share:parseFloat(share)};
+  const tenantShare = parseFloat((amt/d).toFixed(2));
+  const ownerShare = tenantShare;
+  const downstairsShare = type==='water' ? parseFloat((amt*2/5).toFixed(2)) : 0;
+
+  utilCalcResult = {type, total:amt, period:document.getElementById('uf-period').value, notes:document.getElementById('uf-notes').value, tenantShare, ownerShare, downstairsShare};
+
   const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
-  document.getElementById('util-calc').innerHTML=`<span style="font-weight:500;">${labels[type]}</span> · Total: <strong>$${amt.toFixed(2)}</strong><br>Each tenant pays: <strong style="color:var(--gold);">$${share}</strong>`;
+  const tenantNames = allTenants.filter(t=>t.active).map(t=>t.short_name).join(', ');
+  let html = `
+    <div class="share-row"><span>${labels[type]} — Total</span><strong>$${amt.toFixed(2)}</strong></div>
+    <div class="share-row"><span>Each tenant (${tenantNames})</span><span style="color:var(--gold);">$${tenantShare.toFixed(2)}</span></div>
+    <div class="share-row"><span>Your share</span><span style="color:var(--gold);">$${ownerShare.toFixed(2)}</span></div>`;
+  if (downstairsShare > 0) {
+    html += `<div class="share-row"><span style="color:var(--amber);">Downstairs neighbors (Venmo request)</span><span style="color:var(--amber);">$${downstairsShare.toFixed(2)}</span></div>`;
+  }
+  document.getElementById('util-calc').innerHTML = html;
   document.getElementById('util-calc').style.display='block';
   document.getElementById('util-save-btn').style.display='inline-block';
 }
@@ -707,378 +1057,238 @@ async function saveUtil() {
   if (!utilCalcResult) return;
   const fileInput = document.getElementById('uf-receipt');
   let receiptData = null;
-  if (fileInput && fileInput.files.length > 0) {
+  if (fileInput&&fileInput.files.length>0) {
     const file = fileInput.files[0];
     receiptData = await new Promise(resolve => {
       const reader = new FileReader();
-      reader.onload = e => resolve({ data: e.target.result, name: file.name, type: file.type });
+      reader.onload = e => resolve({data:e.target.result.split(',')[1],name:file.name,type:file.type});
       reader.readAsDataURL(file);
     });
   }
-  const result = await api('/api/utilities', {method:'POST', body:JSON.stringify({...utilCalcResult, receipt: receiptData})});
+  const result = await api('/api/utilities',{method:'POST',body:JSON.stringify({...utilCalcResult,receipt:receiptData})});
   if (result.ok) {
-    alert('Bill saved. Use "Send to tenants" when all bills for the month are ready.');
+    alert(`Bill saved.\n\nDownstairs neighbors owe: $${utilCalcResult.downstairsShare.toFixed(2)} (Venmo request)\n\nUse "Send to tenants" in the summary to notify tenants.`);
     toggleUtilForm();
     loadUtilities();
   }
+}
+
+async function notifyUtil(id) {
+  const res = await api(`/api/utilities/${id}/notify`,{method:'POST'});
+  if (res.ok) {
+    alert('✅ Preview sent to your phone. Check Previews tab to confirm sending to tenants.');
+    loadPreviews(); loadDashboard();
+  }
+}
+
+async function notifyAllUtil(period) {
+  const res = await api(`/api/utilities/notify-all?period=${encodeURIComponent(period)}`,{method:'POST'});
+  if (res.ok) {
+    alert('✅ Preview sent to your phone. Check Previews tab to confirm sending to tenants.');
+    loadPreviews(); loadDashboard();
+  }
+}
+
+async function deleteUtil(id) {
+  if (!confirm('Delete this utility bill?')) return;
+  await api(`/api/utilities/${id}`,{method:'DELETE'});
+  loadUtilities();
 }
 
 async function loadUtilities() {
   if (!TOKEN) return;
   const bills = await api('/api/utilities');
   const labels = {water:'Water (÷5)',electricity:'Electricity (÷3)',gas:'Gas (÷3)',internet:'Internet (÷3)'};
-
-  // Group by period
   const byPeriod = {};
-  bills.forEach(b => {
-    const p = b.period || 'Unknown period';
-    if (!byPeriod[p]) byPeriod[p] = [];
-    byPeriod[p].push(b);
-  });
+  bills.forEach(b => { const p=b.period||'Unknown'; if(!byPeriod[p]) byPeriod[p]=[]; byPeriod[p].push(b); });
 
-  // Monthly summary
   const summaryEl = document.getElementById('util-monthly-summary');
-  if (summaryEl) {
-    summaryEl.innerHTML = Object.entries(byPeriod).sort((a,b)=>b[0].localeCompare(a[0])).map(([period, pbills]) => {
-      const totalShare = pbills.reduce((s,b) => s + b.tenant_share, 0);
-      const allNotified = pbills.every(b => b.notified);
-      return `
-      <div class="card" style="margin-bottom:16px;">
-        <div class="row between" style="margin-bottom:12px;">
-          <span style="font-weight:500;">${period}</span>
-          <span style="color:var(--gold);font-weight:500;">Each tenant: $${totalShare.toFixed(2)}</span>
-        </div>
-        <table style="width:100%;font-size:13px;border-collapse:collapse;">
-          ${pbills.map(b=>`
-          <tr style="border-bottom:0.5px solid var(--border);">
-            <td style="padding:6px 0;color:var(--text2);">${labels[b.type]||b.type}</td>
-            <td style="padding:6px 0;text-align:center;color:var(--text2);">$${b.total.toFixed(2)} total</td>
-            <td style="padding:6px 0;text-align:right;color:var(--gold);">$${b.tenant_share.toFixed(2)} each</td>
-            <td style="padding:6px 0;text-align:right;">${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:11px;">📄</a>`:''}</td>
-          </tr>`).join('')}
-          <tr>
-            <td colspan="2" style="padding:8px 0;font-weight:500;">Total per tenant</td>
-            <td style="padding:8px 0;text-align:right;font-weight:500;color:var(--gold);">$${totalShare.toFixed(2)}</td>
-            <td></td>
-          </tr>
-        </table>
-        ${!allNotified
-          ? `<button onclick="notifyAllUtil('${period}')" class="btn-primary" style="margin-top:12px;font-size:12px;width:100%;">Send combined notice to both tenants</button>`
-          : `<div style="color:var(--green);font-size:12px;margin-top:10px;">✓ Tenants notified</div>`}
-      </div>`;
-    }).join('');
-  }
+  summaryEl.innerHTML = Object.entries(byPeriod).sort((a,b)=>b[0].localeCompare(a[0])).map(([period,pbills]) => {
+    const totalShare = pbills.reduce((s,b)=>s+b.tenant_share,0);
+    const downstairsTotal = pbills.reduce((s,b)=>s+(b.downstairs_share||0),0);
+    const allNotified = pbills.every(b=>b.notified);
+    return `
+    <div class="card" style="margin-bottom:14px;">
+      <div class="row between" style="margin-bottom:10px;">
+        <span style="font-weight:500;">${period}</span>
+        <span style="color:var(--gold);font-weight:500;">Per tenant: $${totalShare.toFixed(2)}</span>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        ${pbills.map(b=>`
+        <tr style="border-bottom:0.5px solid var(--border);">
+          <td style="padding:5px 0;color:var(--text2);">${labels[b.type]||b.type}</td>
+          <td style="padding:5px 0;text-align:center;color:var(--text2);">$${b.total.toFixed(2)}</td>
+          <td style="padding:5px 0;text-align:right;color:var(--gold);">$${b.tenant_share.toFixed(2)}/tenant</td>
+          <td style="padding:5px 0;text-align:right;">
+            ${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:10px;">📄</a>`:''}
+            <button onclick="deleteUtil(${b.id})" style="font-size:10px;color:var(--text3);border:none;padding:2px 4px;">✕</button>
+          </td>
+        </tr>`).join('')}
+        <tr><td colspan="2" style="padding:6px 0;font-weight:500;font-size:13px;">Total per tenant</td><td style="padding:6px 0;text-align:right;font-weight:600;color:var(--gold);font-size:13px;">$${totalShare.toFixed(2)}</td><td></td></tr>
+      </table>
+      ${downstairsTotal>0?`<div style="margin-top:8px;padding:8px;background:rgba(186,117,23,0.08);border-radius:6px;border:0.5px solid rgba(186,117,23,0.3);">
+        <span class="muted">Venmo request downstairs neighbors:</span>
+        <strong style="color:var(--amber);margin-left:6px;">$${downstairsTotal.toFixed(2)}</strong>
+      </div>`:''}
+      ${!allNotified
+        ?`<button onclick="notifyAllUtil('${period}')" class="btn-primary" style="margin-top:10px;font-size:11px;width:100%;">Preview notice to tenants</button>`
+        :`<div style="color:var(--green);font-size:11px;margin-top:8px;">✓ Tenants notified</div>`}
+    </div>`;
+  }).join('');
 
-  // All bills
   const el = document.getElementById('util-list');
-  if (!bills.length) { if(el) el.innerHTML='<div class="empty">No utility bills logged yet.</div>'; if(summaryEl) summaryEl.innerHTML=''; return; }
-  if (el) el.innerHTML = bills.map(b=>`
-  <div class="card" style="margin-bottom:10px;">
+  if (!bills.length) { el.innerHTML='<div class="empty">No bills logged yet.</div>'; summaryEl.innerHTML=''; return; }
+  el.innerHTML = bills.map(b=>`
+  <div class="card" style="margin-bottom:8px;">
     <div class="row between">
       <div>
-        <div style="font-weight:500;">${labels[b.type]||b.type} · ${b.period||'—'}</div>
-        <div class="muted">Total: $${b.total.toFixed(2)} · Per tenant: <strong style="color:var(--gold);">$${b.tenant_share.toFixed(2)}</strong></div>
-        ${b.notes?`<div class="muted">${b.notes}</div>`:''}
-        ${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:12px;">📄 View receipt</a>`:''}
+        <div style="font-weight:500;font-size:13px;">${labels[b.type]||b.type} · ${b.period||'—'}</div>
+        <div class="muted">Total: $${b.total.toFixed(2)} · Per tenant: $${b.tenant_share.toFixed(2)}${b.downstairs_share>0?` · Downstairs: $${b.downstairs_share.toFixed(2)}`:''}</div>
+        ${b.notes?`<div class="muted">${escHtml(b.notes)}</div>`:''}
+        ${b.receipt_url?`<a href="${b.receipt_url}" target="_blank" style="color:var(--gold);font-size:11px;">📄 View receipt</a>`:''}
       </div>
       <div style="text-align:right;">
-        <div class="muted">${fmtTime(b.timestamp)}</div>
-        <div style="font-size:12px;margin-top:4px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:11px;">Send to tenants</button>`}</div>
-        <button onclick="deleteUtil(${b.id})" style="font-size:11px;color:var(--text3);border:none;padding:4px;margin-top:4px;">✕ delete</button>
+        <div class="muted" style="font-size:10px;">${fmtTime(b.timestamp)}</div>
+        <div style="font-size:11px;margin-top:3px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:10px;">Notify</button>`}</div>
+        <button onclick="deleteUtil(${b.id})" style="font-size:10px;color:var(--text3);border:none;padding:2px 4px;margin-top:2px;">✕ delete</button>
       </div>
     </div>
   </div>`).join('');
 }
 
 // ── SCHEDULING ────────────────────────────────────
-async function startScheduling(type) {
-  const label = type==='cleaning'?'cleaning':'pest control';
-  const notes = prompt(`Optional notes for the ${label} scheduling (e.g. focus areas, special instructions):`)||'';
-  if (!confirm(`Start scheduling ${label}? Agent will text both tenants asking for availability.`)) return;
-  const res = await api('/api/scheduling/start', {method:'POST', body:JSON.stringify({type,notes})});
-  if (res.ok) {
-    alert(`✅ Done! Agent texted Temi and Chloe asking for availability. Job #${res.jobId}`);
-    loadScheduling();
-  }
-}
-
 async function loadScheduling() {
+  if (!TOKEN) return;
   const jobs = await api('/api/scheduling');
   const el = document.getElementById('scheduling-list');
-  if (!jobs.length) { el.innerHTML='<div class="empty">No scheduled services yet.</div>'; return; }
+  if (!jobs.length) { el.innerHTML='<div class="empty">No jobs yet.</div>'; return; }
 
-  const statusLabels = {
-    collecting_availability:'Collecting availability — waiting for tenants',
-    awaiting_owner_approval:'Awaiting your approval',
-    confirmed:'Confirmed ✓',
-    completed:'Completed',
-    cancelled:'Cancelled',
-  };
-
-  const typeLabels = { cleaning:'🧹 Cleaning', pest_control:'🪲 Pest Control', thumbtack:'🔨' };
-
-  el.innerHTML = `<div class="section-title" style="margin-bottom:12px;">Active & recent jobs</div>` + jobs.map(j=>`
-  <div class="card" style="margin-bottom:12px;">
-    <div class="row between" style="margin-bottom:10px;">
+  const statusLabels = {collecting_availability:'Collecting availability',awaiting_owner_approval:'Awaiting approval',confirmed:'Confirmed ✓',completed:'Completed',cancelled:'Cancelled'};
+  el.innerHTML = jobs.map(j=>`
+  <div class="card" style="margin-bottom:8px;">
+    <div class="row between" style="margin-bottom:8px;">
       <div>
-        <span style="font-weight:500;">${typeLabels[j.type]||'🔧'} ${j.type==='thumbtack'?j.provider_name:j.type==='cleaning'?'Cleaning':'Pest Control'}</span>
-        <span class="tag" style="margin-left:8px;background:var(--bg3);color:var(--text2);font-size:10px;">${statusLabels[j.status]||j.status}</span>
+        <span style="font-weight:500;">${j.type==='cleaning'?'🧹 Cleaning':j.type==='pest_control'?'🪲 Pest Control':'🔨 '+j.provider_name}</span>
+        <span class="tag" style="margin-left:6px;background:var(--bg3);color:var(--text2);font-size:10px;">${statusLabels[j.status]||j.status}</span>
       </div>
-      <div class="row" style="gap:8px;">
-        <span class="muted" style="font-size:11px;">Job #${j.id}</span>
-        <button onclick="deleteJob(${j.id})" style="font-size:11px;color:var(--red);border-color:rgba(226,75,74,0.3);padding:4px 8px;">Delete</button>
+      <div class="row" style="gap:6px;">
+        <span class="muted" style="font-size:10px;">Job #${j.id}</span>
+        <button onclick="deleteJob(${j.id})" style="font-size:10px;color:var(--red);border-color:rgba(226,75,74,0.3);padding:3px 7px;">Delete</button>
       </div>
     </div>
-    ${j.confirmed_slot?`<div style="color:var(--green);margin-bottom:8px;font-size:13px;">📅 Confirmed: ${j.confirmed_slot}</div>`:''}
+    ${j.confirmed_slot?`<div style="color:var(--green);margin-bottom:6px;font-size:12px;">📅 ${j.confirmed_slot}</div>`:''}
     ${j.availability&&j.availability.length?`
-      <div style="margin-bottom:10px;">
-        <div class="section-title">Tenant availability</div>
-        ${j.availability.map(a=>`<div class="muted" style="font-size:12px;">• <strong style="color:var(--text);">${a.party_name}:</strong> ${a.status==='waiting'?'⏳ Waiting for response':a.availability_text}</div>`).join('')}
+      <div style="margin-bottom:8px;">
+        ${j.availability.map(a=>`<div class="muted" style="font-size:11px;">• <strong style="color:var(--text);">${a.party_name}:</strong> ${a.status==='waiting'?'⏳ Waiting...':escHtml(a.availability_text)}</div>`).join('')}
       </div>`:''}
     ${j.status==='awaiting_owner_approval'&&j.proposed_slots&&j.proposed_slots.length?`
       <div>
-        <div class="section-title">Suggested times — tap to confirm</div>
-        ${j.proposed_slots.map(s=>`
-          <div class="slot-option" onclick="approveSlot(${j.id},'${s.slot}')">
-            <div style="font-weight:500;font-size:13px;">${s.slot}</div>
-            <div class="muted" style="font-size:12px;">${s.reasoning}</div>
-          </div>`).join('')}
+        <div class="section-title">Tap to confirm a time</div>
+        ${j.proposed_slots.map(s=>`<div class="slot-option" onclick="approveSlot(${j.id},'${s.slot}')"><div style="font-weight:500;font-size:12px;">${s.slot}</div><div class="muted" style="font-size:11px;">${s.reasoning}</div></div>`).join('')}
       </div>`:''}
     ${j.type==='cleaning'&&j.status==='confirmed'&&!j.provider_confirmed?`
-      <div style="margin-top:10px;background:var(--bg3);border-radius:8px;padding:12px;">
-        <p class="muted" style="margin-bottom:8px;font-size:12px;">📌 Book at <a href="https://dazzlingcleaners.com" target="_blank" style="color:var(--gold);">dazzlingcleaners.com</a> for <strong>${j.confirmed_slot}</strong>, then paste confirmation below:</p>
-        <div class="row" style="gap:8px;">
-          <input id="dz-confirm-${j.id}" placeholder="Confirmation # or details" style="flex:1;" />
-          <button onclick="confirmDazzling(${j.id})" class="btn-primary" style="font-size:12px;white-space:nowrap;">Log confirmation</button>
+      <div style="margin-top:8px;background:var(--bg3);border-radius:6px;padding:10px;">
+        <p class="muted" style="margin-bottom:6px;font-size:11px;">Book at <a href="https://dazzlingcleaners.com" target="_blank" style="color:var(--gold);">dazzlingcleaners.com</a> for <strong>${j.confirmed_slot}</strong>:</p>
+        <div class="row" style="gap:6px;">
+          <input id="dz-confirm-${j.id}" placeholder="Confirmation #" style="flex:1;" />
+          <button onclick="confirmDazzling(${j.id})" class="btn-primary" style="font-size:11px;white-space:nowrap;">Log</button>
         </div>
       </div>`:''}
-    ${j.provider_confirmed?`<div style="color:var(--green);font-size:12px;margin-top:8px;">✓ Provider confirmed</div>`:''}
+    ${j.provider_confirmed?`<div style="color:var(--green);font-size:11px;margin-top:6px;">✓ Provider confirmed</div>`:''}
   </div>`).join('');
 }
 
 async function deleteJob(id) {
-  if (!confirm('Delete this scheduling job? This cannot be undone.')) return;
-  await api(`/api/scheduling/${id}`, {method:'DELETE'});
+  if (!confirm('Delete this scheduling job?')) return;
+  await api(`/api/scheduling/${id}`,{method:'DELETE'});
   loadScheduling();
 }
 
 async function approveSlot(jobId, slot) {
   if (!confirm(`Confirm: ${slot}?`)) return;
-  await api(`/api/scheduling/${jobId}/approve`, {method:'POST', body:JSON.stringify({slot})});
-  alert('✅ Confirmed! Tenants notified. Mehmet texted (pest control) or book Dazzling (cleaning).');
-  loadScheduling();
+  await api(`/api/scheduling/${jobId}/approve`,{method:'POST',body:JSON.stringify({slot})});
+  alert('✅ Confirmed! Preview sent to your phone for tenant notification.');
+  loadScheduling(); loadPreviews();
 }
 
 async function confirmDazzling(jobId) {
   const confirmation = document.getElementById('dz-confirm-'+jobId).value.trim();
-  if (!confirmation) return alert('Enter the confirmation details');
-  await api(`/api/scheduling/${jobId}/dazzling-confirm`, {method:'POST', body:JSON.stringify({confirmation})});
-  alert('✅ Logged! Tenants have already been notified.');
+  if (!confirmation) return alert('Enter confirmation details');
+  await api(`/api/scheduling/${jobId}/dazzling-confirm`,{method:'POST',body:JSON.stringify({confirmation})});
   loadScheduling();
 }
-
-function showThumbтack() {
-  const s = document.getElementById('thumbtack-section');
-  s.style.display = s.style.display==='none'?'block':'none';
-}
-
-async function genThumbтack() {
-  const issue = document.getElementById('tt-issue').value.trim();
-  if (!issue) return alert('Describe the issue first');
-  document.getElementById('tt-result').innerHTML='<div class="muted">Generating...</div>';
-  document.getElementById('tt-result').style.display='block';
-  const res = await api('/api/thumbtack/draft', {method:'POST', body:JSON.stringify({issue})});
-  if (res.ok) {
-    const d = res.draft;
-    document.getElementById('tt-result').innerHTML=`
-    <div style="background:var(--bg3);border-radius:8px;padding:14px;">
-      <div style="font-weight:500;margin-bottom:8px;">${d.title}</div>
-      <div class="muted" style="margin-bottom:6px;"><strong style="color:var(--text);">Category:</strong> ${d.category}</div>
-      <div style="margin-bottom:8px;font-size:13px;">${d.description}</div>
-      <div class="muted"><strong style="color:var(--text);">Budget:</strong> ${d.budget_range}</div>
-      <div class="muted"><strong style="color:var(--text);">Timeline:</strong> ${d.urgency}</div>
-      ${d.questions_to_ask_pros?.length?`<div style="margin-top:8px;"><div class="section-title">Ask pros:</div>${d.questions_to_ask_pros.map(q=>`<div class="muted">• ${q}</div>`).join('')}</div>`:''}
-      <button onclick="navigator.clipboard.writeText('${escHtml(d.title+': '+d.description)}')" style="margin-top:12px;font-size:12px;">Copy for Thumbtack</button>
-    </div>
-    <div style="margin-top:12px;">
-      <p class="muted" style="margin-bottom:8px;">Once you hire someone, enter their details to schedule with tenants:</p>
-      <div class="input-group">
-        <div><label class="field-label">Pro name</label><input id="tt-pro-name" /></div>
-        <div><label class="field-label">Pro phone (+1...)</label><input id="tt-pro-phone" /></div>
-      </div>
-      <input id="tt-pro-slot" placeholder="Confirmed time slot (or leave blank to ask tenants)" style="margin-bottom:8px;" />
-      <button class="btn-primary" onclick="scheduleThumbтackPro()" style="font-size:12px;">Schedule with tenants</button>
-    </div>`;
-  }
-}
-
-async function scheduleThumbтackPro() {
-  const issue = document.getElementById('tt-issue').value;
-  await api('/api/thumbtack/schedule', {method:'POST', body:JSON.stringify({
-    proName: document.getElementById('tt-pro-name').value,
-    proPhone: document.getElementById('tt-pro-phone').value,
-    jobDescription: issue,
-    slot: document.getElementById('tt-pro-slot').value || null,
-  })});
-  alert('✅ Scheduling started with tenants!');
-  loadScheduling();
-}
-
-// ── BROADCAST ─────────────────────────────────────
-// ── BROADCAST ─────────────────────────────────────
-let allTenants = [];
-
-async function loadTenants() {
-  allTenants = await api('/api/tenants');
-  const sel = document.getElementById('bc-target');
-  if (!sel) return;
-  sel.innerHTML = '<option value="all">All tenants</option>' +
-    allTenants.map(t => `<option value="${t.id}">${t.short_name} (${t.payment_method})</option>`).join('');
-}
-
-function previewBroadcast() {
-  const content = document.getElementById('bc-content').value.trim();
-  const target = document.getElementById('bc-target').value;
-  if (!content) return alert('Enter a message first');
-  const recipients = target === 'all'
-    ? allTenants.map(t => t.short_name).join(', ')
-    : allTenants.find(t => t.id === target)?.short_name || target;
-  document.getElementById('bc-preview-recipients').textContent = `To: ${recipients}`;
-  document.getElementById('bc-preview-text').textContent = content;
-  document.getElementById('bc-preview').style.display = 'block';
-}
-
-async function confirmBroadcast() {
-  const content = document.getElementById('bc-content').value.trim();
-  const target = document.getElementById('bc-target').value;
-  await api('/api/broadcast', {method:'POST', body:JSON.stringify({tenant_id: target, content})});
-  document.getElementById('bc-preview').style.display = 'none';
-  document.getElementById('bc-content').value = '';
-  alert('✅ Sent!');
-}
-
-async function genBroadcast() {
-  const context = document.getElementById('bc-content').value.trim();
-  if (!context) return alert('Add some context about what you want to say');
-  document.getElementById('bc-draft').style.display = 'block';
-  document.getElementById('bc-draft-text').value = 'Drafting...';
-  const target = document.getElementById('bc-target').value;
-  const targetName = target === 'all' ? 'all tenants' : allTenants.find(t=>t.id===target)?.short_name || target;
-  const res = await api('/api/draft-message', {method:'POST', body:JSON.stringify({context, targetName})});
-  document.getElementById('bc-draft-text').value = res.draft || 'Error generating draft';
-}
-
-function previewDraft() {
-  const content = document.getElementById('bc-draft-text').value.trim();
-  const target = document.getElementById('bc-target').value;
-  if (!content) return;
-  const recipients = target === 'all'
-    ? allTenants.map(t => t.short_name).join(', ')
-    : allTenants.find(t => t.id === target)?.short_name || target;
-  document.getElementById('bc-preview-recipients').textContent = `To: ${recipients}`;
-  document.getElementById('bc-preview-text').textContent = content;
-  document.getElementById('bc-content').value = content;
-  document.getElementById('bc-preview').style.display = 'block';
-  document.getElementById('bc-draft').style.display = 'none';
-}
-
-async function sendDraft() {
-  previewDraft();
-}
-
-async function sendBroadcast() {
-  previewBroadcast();
-}
-
-// ── SCHEDULING ────────────────────────────────────
-let currentSchedulingJob = null;
-let currentProviderKey = null;
-
-const PROVIDERS = {
-  cleaning: { name: 'Stanley', phone: '+12535188749', label: 'Cleaning' },
-  pest_control: { name: 'Mehmet', phone: '+12023897752', label: 'Pest Control' },
-};
 
 async function prepareScheduling(type) {
-  const provider = PROVIDERS[type];
-  const notes = prompt(`Optional notes for ${provider.label} (e.g. focus areas, special instructions):`)||'';
-
-  const tenantMsg = `Hi, we're scheduling ${provider.label.toLowerCase()} at the property. Could you please share 2-3 windows of availability over the next 1-2 weeks (e.g., "Mon June 23 morning")? We'll confirm once we coordinate. Thank you! — 9 Quincy Management`;
+  const provider = type==='cleaning'?{name:'Stanley',phone:'+12535188749',label:'Cleaning'}:{name:'Mehmet',phone:'+12023897752',label:'Pest Control'};
+  const notes = prompt(`Notes for ${provider.label} (optional):`)||'';
+  const tenantMsg = `Hi, we're scheduling ${provider.label.toLowerCase()} at the property. Could you share 2-3 available time windows over the next 1-2 weeks? We'll confirm once we coordinate. — 9 Quincy Management`;
   const providerMsg = `Hi ${provider.name}, this is 9 Quincy Pl NE #2. We'd like to schedule ${provider.label.toLowerCase()}. Are you available in the next 1-2 weeks? Please suggest some times. Thank you!`;
 
   document.getElementById('preview-tenant-text').textContent = tenantMsg;
   document.getElementById('preview-provider-text').textContent = providerMsg;
   document.getElementById('preview-provider-label').textContent = `Message to ${provider.name} (${provider.label})`;
-  document.getElementById('confirm-tenant-btn').textContent = `✓ Send to all tenants`;
-  document.getElementById('tenant-sent-confirm').style.display = 'none';
-  document.getElementById('provider-sent-confirm').style.display = 'none';
-  document.getElementById('confirm-tenant-btn').disabled = false;
-  document.getElementById('confirm-provider-btn').disabled = false;
+  document.getElementById('tenant-sent-confirm').style.display='none';
+  document.getElementById('provider-sent-confirm').style.display='none';
+  document.getElementById('confirm-tenant-btn').style.display='inline-block';
+  document.getElementById('confirm-tenant-btn').disabled=false;
+  document.getElementById('confirm-provider-btn').style.display='inline-block';
+  document.getElementById('confirm-provider-btn').disabled=false;
 
-  currentSchedulingJob = { type, notes, tenantMsg, providerMsg, provider };
-  document.getElementById('scheduling-preview').style.display = 'block';
-  document.getElementById('scheduling-preview').scrollIntoView({ behavior: 'smooth' });
+  currentSchedulingJobData = {type,notes,tenantMsg,providerMsg,provider};
+  document.getElementById('scheduling-preview').style.display='block';
+  document.getElementById('scheduling-preview').scrollIntoView({behavior:'smooth'});
 }
 
 async function confirmSendTenants() {
-  if (!currentSchedulingJob) return;
+  if (!currentSchedulingJobData) return;
   const btn = document.getElementById('confirm-tenant-btn');
-  btn.disabled = true;
-  btn.textContent = 'Sending...';
-
-  // Create job first
-  const res = await api('/api/scheduling/start-manual', {method:'POST', body:JSON.stringify({
-    type: currentSchedulingJob.type,
-    notes: currentSchedulingJob.notes,
-    tenantMsg: currentSchedulingJob.tenantMsg,
+  btn.disabled=true; btn.textContent='Sending preview...';
+  const res = await api('/api/scheduling/start-manual',{method:'POST',body:JSON.stringify({
+    type:currentSchedulingJobData.type,
+    notes:currentSchedulingJobData.notes,
+    tenantMsg:currentSchedulingJobData.tenantMsg,
   })});
-  currentSchedulingJob.jobId = res.jobId;
-
-  document.getElementById('tenant-sent-confirm').style.display = 'block';
-  btn.style.display = 'none';
-  loadScheduling();
+  if (res.jobId) currentSchedulingJobData.jobId = res.jobId;
+  document.getElementById('tenant-sent-confirm').style.display='block';
+  btn.style.display='none';
+  loadScheduling(); loadPreviews();
 }
 
 async function confirmSendProvider() {
-  if (!currentSchedulingJob) return;
+  if (!currentSchedulingJobData) return;
   const btn = document.getElementById('confirm-provider-btn');
-  btn.disabled = true;
-  btn.textContent = 'Sending...';
-
-  await api('/api/scheduling/notify-provider', {method:'POST', body:JSON.stringify({
-    providerPhone: currentSchedulingJob.provider.phone,
-    providerName: currentSchedulingJob.provider.name,
-    message: currentSchedulingJob.providerMsg,
-    jobId: currentSchedulingJob.jobId || null,
+  btn.disabled=true; btn.textContent='Sending...';
+  await api('/api/scheduling/notify-provider',{method:'POST',body:JSON.stringify({
+    providerPhone:currentSchedulingJobData.provider.phone,
+    providerName:currentSchedulingJobData.provider.name,
+    message:currentSchedulingJobData.providerMsg,
+    jobId:currentSchedulingJobData.jobId||null,
   })});
-
-  document.getElementById('provider-sent-confirm').style.display = 'block';
-  btn.style.display = 'none';
+  document.getElementById('provider-sent-confirm').style.display='block';
+  btn.style.display='none';
 }
 
-// ── PROVIDER PORTAL ───────────────────────────────
-let currentProviderPhone = null;
-
+// Provider portal
 function openProviderPortal(key) {
-  const providers = { mehmet: { name: 'Mehmet (Pest Control)', phone: '+12023897752' }, stanley: { name: 'Stanley (Cleaning)', phone: '+12535188749' } };
+  const providers = {mehmet:{name:'Mehmet — Pest Control',phone:'+12023897752'},stanley:{name:'Stanley — Cleaning',phone:'+12535188749'}};
   const p = providers[key];
   currentProviderPhone = p.phone;
   document.getElementById('portal-title').textContent = p.name;
-  document.getElementById('provider-portal').style.display = 'block';
+  document.getElementById('provider-portal').style.display='block';
   loadProviderMessages(p.phone);
-  document.getElementById('provider-portal').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('provider-portal').scrollIntoView({behavior:'smooth'});
 }
 
 function closeProviderPortal() {
-  document.getElementById('provider-portal').style.display = 'none';
+  document.getElementById('provider-portal').style.display='none';
   currentProviderPhone = null;
 }
 
 async function loadProviderMessages(phone) {
   const msgs = await api(`/api/provider-messages?phone=${encodeURIComponent(phone)}`);
   const el = document.getElementById('portal-messages');
-  if (!msgs || !msgs.length) { el.innerHTML = '<div class="muted" style="text-align:center;">No messages yet</div>'; return; }
-  el.innerHTML = msgs.map(m => `
+  if (!msgs||!msgs.length) { el.innerHTML='<div class="muted" style="text-align:center;padding:16px;">No messages yet</div>'; return; }
+  el.innerHTML = msgs.map(m=>`
     <div>
       <div class="${m.direction==='inbound'?'inbound-msg':'outbound-msg'}">${escHtml(m.content)}</div>
       <div class="msg-time" style="${m.direction==='outbound'?'text-align:right;':''}">${fmtTime(m.timestamp)}</div>
@@ -1088,56 +1298,482 @@ async function loadProviderMessages(phone) {
 
 async function sendProviderMessage() {
   const content = document.getElementById('portal-input').value.trim();
-  if (!content || !currentProviderPhone) return;
-  await api('/api/provider-send', {method:'POST', body:JSON.stringify({phone: currentProviderPhone, content})});
-  document.getElementById('portal-input').value = '';
+  if (!content||!currentProviderPhone) return;
+  await api('/api/provider-send',{method:'POST',body:JSON.stringify({phone:currentProviderPhone,content})});
+  document.getElementById('portal-input').value='';
   loadProviderMessages(currentProviderPhone);
+}
+
+function showThumbtack() {
+  const s = document.getElementById('thumbtack-section');
+  s.style.display = s.style.display==='none'?'block':'none';
+}
+
+async function genThumbtack() {
+  const issue = document.getElementById('tt-issue').value.trim();
+  if (!issue) return alert('Describe the issue first');
+  document.getElementById('tt-result').innerHTML='<div class="muted">Generating...</div>';
+  document.getElementById('tt-result').style.display='block';
+  const res = await api('/api/draft-message',{method:'POST',body:JSON.stringify({context:issue,targetName:'a contractor on Thumbtack'})});
+  lastThumbtackDraft = res.draft || '';
+  document.getElementById('tt-result').innerHTML=`
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;">
+      <div class="section-title">Job post draft</div>
+      <div style="font-size:13px;line-height:1.6;">${escHtml(lastThumbtackDraft)}</div>
+      <button onclick="copyThumbtack()" style="margin-top:8px;font-size:11px;">Copy</button>
+    </div>`;
+}
+
+function copyThumbtack() {
+  navigator.clipboard.writeText(lastThumbtackDraft);
+  alert('Copied to clipboard');
+}
+
+// ── BROADCAST ─────────────────────────────────────
+function previewBroadcast() {
+  const content = document.getElementById('bc-content').value.trim();
+  const target = document.getElementById('bc-target').value;
+  if (!content) return alert('Enter a message first');
+  const recipients = target==='all'
+    ? 'All tenants ('+allTenants.filter(t=>t.active).map(t=>t.short_name).join(', ')+')'
+    : allTenants.find(t=>t.id===target)?.short_name||target;
+  document.getElementById('bc-preview-recipients').textContent = 'To: '+recipients;
+  document.getElementById('bc-preview-text').textContent = content;
+  document.getElementById('bc-preview').style.display='block';
+}
+
+async function confirmBroadcast() {
+  const content = document.getElementById('bc-content').value.trim();
+  const target = document.getElementById('bc-target').value;
+  const tenant = target!=='all' ? allTenants.find(t=>t.id===target) : null;
+
+  // Send preview to owner first
+  await api('/api/previews/create',{method:'POST',body:JSON.stringify({
+    tenant_id: target==='all'?null:target,
+    content,
+    type:'broadcast'
+  })});
+
+  document.getElementById('bc-preview').style.display='none';
+  document.getElementById('bc-content').value='';
+  alert('✅ Preview sent to your phone. Check the Previews tab to confirm sending to tenants.');
+  loadPreviews(); loadDashboard();
+}
+
+async function genBroadcast() {
+  const context = document.getElementById('bc-content').value.trim();
+  if (!context) return alert('Add some context about what you want to say');
+  document.getElementById('bc-draft').style.display='block';
+  document.getElementById('bc-draft-text').value='Drafting...';
+  const target = document.getElementById('bc-target').value;
+  const targetName = target==='all'?'all tenants':allTenants.find(t=>t.id===target)?.short_name||target;
+  const res = await api('/api/draft-message',{method:'POST',body:JSON.stringify({context,targetName})});
+  document.getElementById('bc-draft-text').value = res.draft||'Error generating draft';
+}
+
+function previewDraft() {
+  const content = document.getElementById('bc-draft-text').value.trim();
+  if (!content) return;
+  document.getElementById('bc-content').value = content;
+  document.getElementById('bc-draft').style.display='none';
+  previewBroadcast();
+}
+
+// ── NOTICES ───────────────────────────────────────
+let noticeTemplates = [];
+
+async function loadNoticeTemplates() {
+  if (!TOKEN) return;
+  noticeTemplates = await api('/api/notices/templates');
+  const sel = document.getElementById('nt-template');
+  if (sel) {
+    sel.innerHTML = noticeTemplates.map(t=>`<option value="${t.key}">${t.label}</option>`).join('');
+    renderNoticeFields();
+  }
+}
+
+const NOTICE_FIELD_LABELS = {
+  date:'Date', time:'Time', reason:'Reason for entry', amount:'Amount ($)',
+  lateFee:'Late fee ($)', month:'Month', period:'Billing period',
+  violation:'What happened', paragraph:'Lease paragraph #', remedy:'Required action',
+  detail:'Details', leaseEnd:'Lease end date', moveoutDate:'Move-out date'
+};
+
+function renderNoticeFields() {
+  const sel = document.getElementById('nt-template');
+  if (!sel) return;
+  const tpl = noticeTemplates.find(t=>t.key===sel.value);
+  const el = document.getElementById('notice-fields');
+  if (!tpl) { el.innerHTML=''; return; }
+  el.innerHTML = `<div class="input-group">${tpl.fields.map(f=>`
+    <div><label class="field-label">${NOTICE_FIELD_LABELS[f]||f}</label><input id="nf-${f}" ${f==='date'||f==='leaseEnd'||f==='moveoutDate'?'type="date"':''} /></div>`).join('')}</div>`;
+
+  // Prefill what we can from the selected tenant
+  const tenant = allTenants.find(t=>t.id===document.getElementById('nt-tenant').value);
+  if (!tenant) return;
+  const monthEl = document.getElementById('nf-month');
+  if (monthEl) monthEl.value = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const amtEl = document.getElementById('nf-amount');
+  if (amtEl && sel.value==='rent_leaseholder') amtEl.value = tenant.rent;
+  if (amtEl && (sel.value==='late_rent'||sel.value==='rent_reminder')) amtEl.value = tenant.rent;
+  const feeEl = document.getElementById('nf-lateFee');
+  if (feeEl) feeEl.value = (tenant.rent*0.1).toFixed(2);
+  const leaseEndEl = document.getElementById('nf-leaseEnd');
+  if (leaseEndEl) leaseEndEl.value = tenant.lease_end||'';
+  const moveEl = document.getElementById('nf-moveoutDate');
+  if (moveEl) moveEl.value = tenant.lease_end||'';
+}
+
+async function buildNotice() {
+  const template = document.getElementById('nt-template').value;
+  const tenant_id = document.getElementById('nt-tenant').value;
+  if (!tenant_id) return alert('Select a tenant');
+  const tpl = noticeTemplates.find(t=>t.key===template);
+  const fields = {};
+  tpl.fields.forEach(f => { const el=document.getElementById('nf-'+f); if(el) fields[f]=el.value; });
+  const missing = tpl.fields.filter(f=>!fields[f]);
+  if (missing.length) return alert('Fill in: '+missing.map(f=>NOTICE_FIELD_LABELS[f]||f).join(', '));
+
+  const res = await api('/api/notices/build',{method:'POST',body:JSON.stringify({template,tenant_id,fields})});
+  if (res.content) {
+    document.getElementById('notice-text').value = res.content;
+    document.getElementById('notice-draft').style.display='block';
+    document.getElementById('notice-draft').scrollIntoView({behavior:'smooth'});
+  }
+}
+
+async function sendNotice() {
+  const template = document.getElementById('nt-template').value;
+  const tenant_id = document.getElementById('nt-tenant').value;
+  const content = document.getElementById('notice-text').value.trim();
+  const logIncident = document.getElementById('nt-log').checked;
+  if (!content) return;
+  await api('/api/notices/send',{method:'POST',body:JSON.stringify({template,tenant_id,content,logIncident})});
+  document.getElementById('notice-draft').style.display='none';
+  alert('Preview sent to your phone. Confirm in the Previews tab to deliver it.');
+  loadPreviews(); loadDashboard(); loadIncidents();
+}
+
+// ── INCIDENTS ─────────────────────────────────────
+let incidentFilter = '';
+
+function toggleIncidentForm() {
+  const f = document.getElementById('incident-form');
+  f.style.display = f.style.display==='none'?'block':'none';
+  if (f.style.display==='block') document.getElementById('inc-date').value = new Date().toISOString().slice(0,10);
+}
+
+function setIncidentFilter(f, btn) {
+  incidentFilter = f;
+  document.querySelectorAll('#page-incidents .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadIncidents();
+}
+
+async function saveIncident() {
+  const title = document.getElementById('inc-title').value.trim();
+  const incident_date = document.getElementById('inc-date').value;
+  if (!title || !incident_date) return alert('Title and date are required');
+
+  let photo = null;
+  const pf = document.getElementById('inc-photo');
+  if (pf && pf.files.length) {
+    const file = pf.files[0];
+    photo = await new Promise(r => { const rd=new FileReader(); rd.onload=e=>r({data:e.target.result,name:file.name}); rd.readAsDataURL(file); });
+  }
+
+  await api('/api/incidents',{method:'POST',body:JSON.stringify({
+    tenant_id: document.getElementById('inc-tenant').value || null,
+    incident_date,
+    category: document.getElementById('inc-category').value,
+    severity: document.getElementById('inc-severity').value,
+    title,
+    description: document.getElementById('inc-description').value,
+    lease_reference: document.getElementById('inc-lease-ref').value,
+    action_taken: document.getElementById('inc-action').value,
+    photo
+  })});
+
+  ['inc-title','inc-description','inc-lease-ref','inc-action'].forEach(id=>document.getElementById(id).value='');
+  if (pf) pf.value='';
+  toggleIncidentForm();
+  loadIncidents(); loadDashboard();
+}
+
+async function loadIncidents() {
+  if (!TOKEN) return;
+  let list = await api('/api/incidents');
+  const badge = document.getElementById('incident-badge');
+  const openCount = list.filter(i=>!i.resolved).length;
+  if (badge) { badge.textContent = openCount; badge.style.display = openCount>0?'inline':'none'; }
+  if (incidentFilter==='open') list = list.filter(i=>!i.resolved);
+
+  const el = document.getElementById('incident-list');
+  if (!el) return;
+  if (!list.length) { el.innerHTML='<div class="empty">No incidents logged.</div>'; return; }
+
+  const sevColor = {minor:'var(--text2)',moderate:'var(--amber)',serious:'var(--red)'};
+  el.innerHTML = list.map(i=>`
+  <div class="card" style="margin-bottom:8px;border-left:3px solid ${sevColor[i.severity]||'var(--text2)'};">
+    <div class="row between" style="margin-bottom:6px;">
+      <div class="row" style="gap:6px;flex-wrap:wrap;">
+        <span style="font-weight:500;font-size:13px;">${escHtml(i.title)}</span>
+        <span class="tag" style="background:var(--bg3);color:${sevColor[i.severity]||'var(--text2)'};">${i.severity}</span>
+        <span class="tag tag-general">${escHtml((i.category||'').replace(/_/g,' '))}</span>
+        ${i.resolved?'<span class="tag" style="background:rgba(59,109,17,0.15);color:#97C459;">resolved</span>':''}
+      </div>
+      <span class="muted" style="font-size:10px;white-space:nowrap;">${i.incident_date}</span>
+    </div>
+    ${i.short_name?`<div class="muted" style="margin-bottom:4px;">Tenant: ${i.short_name}</div>`:'<div class="muted" style="margin-bottom:4px;">Property-wide</div>'}
+    ${i.description?`<div style="font-size:12px;line-height:1.6;margin-bottom:4px;">${escHtml(i.description)}</div>`:''}
+    ${i.lease_reference?`<div class="muted">Lease: ${escHtml(i.lease_reference)}</div>`:''}
+    ${i.action_taken?`<div class="muted">Action: ${escHtml(i.action_taken)}</div>`:''}
+    ${i.photo_name?`<a href="/api/incidents/${i.id}/photo" target="_blank" style="color:var(--gold);font-size:11px;">View photo</a>`:''}
+    <div class="row" style="gap:6px;margin-top:8px;">
+      <button onclick="toggleIncidentResolved(${i.id},${i.resolved})" style="font-size:10px;">${i.resolved?'Reopen':'Mark resolved'}</button>
+      <button onclick="deleteIncident(${i.id})" style="font-size:10px;color:var(--text3);">Delete</button>
+    </div>
+  </div>`).join('');
+}
+
+async function toggleIncidentResolved(id, current) {
+  await api(`/api/incidents/${id}`,{method:'PATCH',body:JSON.stringify({resolved:current?0:1})});
+  loadIncidents(); loadDashboard();
+}
+
+async function deleteIncident(id) {
+  if (!confirm('Delete this incident entry?')) return;
+  await api(`/api/incidents/${id}`,{method:'DELETE'});
+  loadIncidents(); loadDashboard();
+}
+
+function exportIncidents() {
+  const tid = document.getElementById('inc-export-tenant').value;
+  window.open(`/api/incidents/export?tenant_id=${encodeURIComponent(tid)}&token=${encodeURIComponent(TOKEN)}`,'_blank');
+}
+
+// ── MOVE-OUT ──────────────────────────────────────
+function toggleMoveoutForm() {
+  const f = document.getElementById('moveout-form');
+  f.style.display = f.style.display==='none'?'block':'none';
+  if (f.style.display==='block') {
+    const t = allTenants.find(x=>x.id===document.getElementById('mo-tenant').value);
+    if (t) { document.getElementById('mo-date').value=t.lease_end||''; document.getElementById('mo-deposit').value=t.deposit||''; }
+  }
+}
+
+async function saveMoveout() {
+  const tenant_id = document.getElementById('mo-tenant').value;
+  const moveout_date = document.getElementById('mo-date').value;
+  if (!tenant_id||!moveout_date) return alert('Tenant and move-out date required');
+  await api('/api/moveouts',{method:'POST',body:JSON.stringify({
+    tenant_id, moveout_date,
+    notice_received_date: document.getElementById('mo-notice').value||null,
+    deposit_amount: parseFloat(document.getElementById('mo-deposit').value)||0
+  })});
+  toggleMoveoutForm();
+  loadMoveouts(); loadDashboard();
+}
+
+async function loadMoveouts() {
+  if (!TOKEN) return;
+  const list = await api('/api/moveouts');
+  const el = document.getElementById('moveout-list');
+  if (!el) return;
+  if (!list.length) { el.innerHTML='<div class="empty">No move-outs being tracked.</div>'; return; }
+
+  const CHECKLIST = ['Move-out notice received','Move-out instructions sent','Keys returned','Belongings removed','Unit inspected','Photos taken','Final utility bill received','Forwarding address on file','Deposit statement sent','Deposit returned'];
+
+  el.innerHTML = list.map(m=>{
+    const done = m.inspection_notes ? (()=>{try{return JSON.parse(m.inspection_notes).checklist||[]}catch{return []}})() : [];
+    const notes = m.inspection_notes ? (()=>{try{return JSON.parse(m.inspection_notes).notes||''}catch{return m.inspection_notes}})() : '';
+    return `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="row between" style="margin-bottom:10px;">
+        <div class="row" style="gap:8px;">
+          <div class="avatar" style="width:32px;height:32px;background:${m.color};font-size:11px;">${m.initials}</div>
+          <div>
+            <div style="font-weight:500;">${escHtml(m.name)}</div>
+            <div class="muted">Moving out ${m.moveout_date}</div>
+          </div>
+        </div>
+        <button onclick="deleteMoveout(${m.id})" style="font-size:10px;color:var(--text3);">Delete</button>
+      </div>
+
+      ${m.depositClock?`<div style="padding:8px 10px;border-radius:6px;margin-bottom:10px;background:${m.depositClock.tone==='red'?'rgba(226,75,74,0.1)':m.depositClock.tone==='amber'?'rgba(186,117,23,0.1)':'rgba(59,109,17,0.1)'};border:0.5px solid ${m.depositClock.tone==='red'?'rgba(226,75,74,0.3)':m.depositClock.tone==='amber'?'rgba(186,117,23,0.3)':'rgba(59,109,17,0.3)'};">
+        <span style="font-size:12px;color:${m.depositClock.tone==='red'?'var(--red)':m.depositClock.tone==='amber'?'var(--amber)':'#97C459'};">${m.depositClock.text} (by ${m.depositClock.deadline})</span>
+      </div>`:''}
+
+      <div class="section-title">Checklist</div>
+      <div style="margin-bottom:12px;">
+        ${CHECKLIST.map((item,idx)=>`
+        <label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;cursor:pointer;color:${done.includes(idx)?'var(--text3)':'var(--text)'};${done.includes(idx)?'text-decoration:line-through;':''}">
+          <input type="checkbox" ${done.includes(idx)?'checked':''} onchange="toggleMoveoutCheck(${m.id},${idx})" style="width:auto;margin:0;" />
+          ${item}
+        </label>`).join('')}
+      </div>
+
+      <div class="input-group">
+        <div><label class="field-label">Inspection date</label><input type="date" id="mo-insp-${m.id}" value="${m.inspection_date||''}" onchange="updateMoveout(${m.id},'inspection_date',this.value)" /></div>
+        <div><label class="field-label">Deposit held ($)</label><input type="number" value="${m.deposit_amount||0}" onchange="updateMoveout(${m.id},'deposit_amount',parseFloat(this.value)||0)" /></div>
+        <div><label class="field-label">Final utilities ($)</label><input type="number" value="${m.final_utilities||0}" onchange="updateMoveout(${m.id},'final_utilities',parseFloat(this.value)||0)" /></div>
+        <div><label class="field-label">Status</label>
+          <select onchange="updateMoveout(${m.id},'status',this.value)">
+            <option value="upcoming" ${m.status==='upcoming'?'selected':''}>Upcoming</option>
+            <option value="inspecting" ${m.status==='inspecting'?'selected':''}>Inspecting</option>
+            <option value="accounting" ${m.status==='accounting'?'selected':''}>Accounting</option>
+            <option value="closed" ${m.status==='closed'?'selected':''}>Closed</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;"><label class="field-label">Forwarding address</label><input value="${escHtml(m.forwarding_address||'')}" onchange="updateMoveout(${m.id},'forwarding_address',this.value)" /></div>
+      <div style="margin-bottom:10px;"><label class="field-label">Inspection notes</label><textarea rows="2" onchange="updateMoveoutNotes(${m.id},this.value)" style="min-height:55px;">${escHtml(notes)}</textarea></div>
+
+      <div class="section-title">Deductions</div>
+      <div id="mo-deduct-${m.id}" style="margin-bottom:8px;">
+        ${m.deductions.map((d,idx)=>`
+        <div class="row between" style="padding:4px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
+          <span>${escHtml(d.description)}</span>
+          <div class="row" style="gap:6px;">
+            <span style="color:var(--red);">-$${parseFloat(d.amount||0).toFixed(2)}</span>
+            <button onclick="removeDeduction(${m.id},${idx})" style="font-size:10px;border:none;color:var(--text3);padding:2px;">✕</button>
+          </div>
+        </div>`).join('') || '<div class="muted">None</div>'}
+      </div>
+      <div class="row" style="gap:6px;margin-bottom:10px;">
+        <input id="mo-dd-${m.id}" placeholder="Description" style="flex:2;" />
+        <input id="mo-da-${m.id}" type="number" placeholder="$" style="flex:1;" />
+        <button onclick="addDeduction(${m.id})" style="font-size:11px;white-space:nowrap;">Add</button>
+      </div>
+
+      <div class="share-box">
+        <div class="share-row"><span>Deposit held</span><span>$${(m.deposit_amount||0).toFixed(2)}</span></div>
+        <div class="share-row"><span>Deductions</span><span style="color:var(--red);">-$${m.deductTotal.toFixed(2)}</span></div>
+        <div class="share-row"><span>Final utilities</span><span style="color:var(--red);">-$${(m.final_utilities||0).toFixed(2)}</span></div>
+        <div class="share-row"><span>To return</span><span style="color:var(--gold);">$${m.owedBack.toFixed(2)}</span></div>
+      </div>
+
+      <button onclick="downloadStatement(${m.id})" class="btn-primary" style="font-size:11px;width:100%;margin-top:8px;">Download deposit statement</button>
+    </div>`;
+  }).join('');
+}
+
+async function updateMoveout(id, field, value) {
+  await api(`/api/moveouts/${id}`,{method:'PATCH',body:JSON.stringify({[field]:value})});
+  loadMoveouts();
+}
+
+async function updateMoveoutNotes(id, notesText) {
+  const list = await api('/api/moveouts');
+  const m = list.find(x=>x.id===id);
+  let checklist = [];
+  try { checklist = JSON.parse(m.inspection_notes||'{}').checklist||[]; } catch {}
+  await api(`/api/moveouts/${id}`,{method:'PATCH',body:JSON.stringify({inspection_notes:JSON.stringify({checklist,notes:notesText})})});
+}
+
+async function toggleMoveoutCheck(id, idx) {
+  const list = await api('/api/moveouts');
+  const m = list.find(x=>x.id===id);
+  let checklist=[], notes='';
+  try { const p=JSON.parse(m.inspection_notes||'{}'); checklist=p.checklist||[]; notes=p.notes||''; } catch {}
+  checklist = checklist.includes(idx) ? checklist.filter(x=>x!==idx) : [...checklist, idx];
+  await api(`/api/moveouts/${id}`,{method:'PATCH',body:JSON.stringify({inspection_notes:JSON.stringify({checklist,notes})})});
+  loadMoveouts();
+}
+
+async function addDeduction(id) {
+  const desc = document.getElementById('mo-dd-'+id).value.trim();
+  const amt = parseFloat(document.getElementById('mo-da-'+id).value);
+  if (!desc||!amt) return alert('Enter a description and amount');
+  const list = await api('/api/moveouts');
+  const m = list.find(x=>x.id===id);
+  const deductions = [...m.deductions, {description:desc, amount:amt}];
+  await api(`/api/moveouts/${id}`,{method:'PATCH',body:JSON.stringify({deductions})});
+  loadMoveouts();
+}
+
+async function removeDeduction(id, idx) {
+  const list = await api('/api/moveouts');
+  const m = list.find(x=>x.id===id);
+  const deductions = m.deductions.filter((_,i)=>i!==idx);
+  await api(`/api/moveouts/${id}`,{method:'PATCH',body:JSON.stringify({deductions})});
+  loadMoveouts();
+}
+
+async function deleteMoveout(id) {
+  if (!confirm('Stop tracking this move-out?')) return;
+  await api(`/api/moveouts/${id}`,{method:'DELETE'});
+  loadMoveouts(); loadDashboard();
+}
+
+function downloadStatement(id) {
+  window.open(`/api/moveouts/${id}/statement?token=${encodeURIComponent(TOKEN)}`,'_blank');
 }
 
 // ── SETTINGS ──────────────────────────────────────
 async function loadConfig() {
+  if (!TOKEN) return;
   const config = await api('/api/config');
   const labels = {
-    agent_persona:'Agent personality',
+    escalate_topics:'ESCALATE ONLY — agent never answers these (one per line)',
+    escalate_response:'What the agent says when escalating',
+    agent_persona:'Agent personality & tone',
+    agent_disclosure:'Disclosure added to every response',
     urgency_rules:'Urgency classification rules',
     gather_maintenance:'Maintenance follow-up questions',
     gather_complaint:'Complaint follow-up questions',
     gather_payment:'Payment follow-up questions',
     gather_scheduling:'Scheduling follow-up questions',
-    custom_rules:'Additional custom rules',
+    custom_rules:'All custom rules (payment, utilities, entry, etc.)',
   };
-  document.getElementById('config-fields').innerHTML = Object.entries(labels).map(([k,label])=>`
-    <div style="margin-bottom:14px;">
+  document.getElementById('config-fields').innerHTML = `
+    <div style="margin-bottom:14px;padding:10px 12px;background:var(--bg3);border-radius:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;margin-bottom:8px;">
+        <input type="checkbox" id="cfg-quiet_hours_enabled" ${config.quiet_hours_enabled==='1'?'checked':''} style="width:auto;margin:0;" />
+        <strong>Quiet hours</strong> — hold non-emergency replies overnight
+      </label>
+      <div class="input-group" style="margin:0;">
+        <div><label class="field-label">Start (24h, ET)</label><input type="number" id="cfg-quiet_hours_start" min="0" max="23" value="${config.quiet_hours_start||21}" /></div>
+        <div><label class="field-label">End (24h, ET)</label><input type="number" id="cfg-quiet_hours_end" min="0" max="23" value="${config.quiet_hours_end||8}" /></div>
+      </div>
+    </div>` + Object.entries(labels).map(([k,label])=>`
+    <div style="margin-bottom:12px;">
       <label class="field-label">${label}</label>
-      <textarea id="cfg-${k}" rows="3">${escHtml(config[k]||'')}</textarea>
+      <textarea id="cfg-${k}" rows="${k==='escalate_topics'?6:3}" style="min-height:${k==='escalate_topics'?120:65}px;">${escHtml(config[k]||'')}</textarea>
     </div>`).join('');
 }
 
 async function saveConfig() {
-  const keys = ['agent_persona','urgency_rules','gather_maintenance','gather_complaint','gather_payment','gather_scheduling','custom_rules'];
+  const keys = ['escalate_topics','escalate_response','agent_persona','agent_disclosure','urgency_rules','gather_maintenance','gather_complaint','gather_payment','gather_scheduling','custom_rules','quiet_hours_start','quiet_hours_end'];
   const updates = {};
-  keys.forEach(k => { const el = document.getElementById('cfg-'+k); if(el) updates[k]=el.value; });
-  await api('/api/config', {method:'POST', body:JSON.stringify(updates)});
-  alert('✅ Agent instructions saved!');
+  keys.forEach(k => { const el=document.getElementById('cfg-'+k); if(el) updates[k]=el.value; });
+  const qh = document.getElementById('cfg-quiet_hours_enabled');
+  if (qh) updates.quiet_hours_enabled = qh.checked ? '1' : '0';
+  await api('/api/config',{method:'POST',body:JSON.stringify(updates)});
+  const btn = document.getElementById('save-config-btn');
+  btn.textContent='Saved!';
+  setTimeout(()=>btn.textContent='Save instructions',2000);
 }
 
 async function addTenant() {
   const data = {
-    id: document.getElementById('nt-id').value.trim(),
-    name: document.getElementById('nt-name').value.trim(),
-    short_name: document.getElementById('nt-short').value.trim(),
-    phone: document.getElementById('nt-phone').value.trim(),
-    payment_method: document.getElementById('nt-payment').value.trim(),
-    rent: parseFloat(document.getElementById('nt-rent').value),
-    deposit: parseFloat(document.getElementById('nt-rent').value),
-    lease_start: document.getElementById('nt-start').value,
-    lease_end: document.getElementById('nt-end').value,
-    prorated_first: 0,
-    initials: document.getElementById('nt-name').value.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+    id:document.getElementById('nt-id').value.trim(),
+    name:document.getElementById('nt-name').value.trim(),
+    short_name:document.getElementById('nt-short').value.trim(),
+    phone:document.getElementById('nt-phone').value.trim(),
+    payment_method:document.getElementById('nt-payment').value.trim(),
+    rent:parseFloat(document.getElementById('nt-rent').value),
+    deposit:parseFloat(document.getElementById('nt-rent').value),
+    lease_start:document.getElementById('nt-start').value,
+    lease_end:document.getElementById('nt-end').value,
+    prorated_first:0,
+    initials:document.getElementById('nt-name').value.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
   };
-  if (!data.id||!data.name||!data.phone||!data.rent) return alert('Fill in required fields');
-  await api('/api/tenants', {method:'POST', body:JSON.stringify(data)});
+  if (!data.id||!data.name||!data.phone||!data.rent) return alert('Fill in all required fields');
+  await api('/api/tenants',{method:'POST',body:JSON.stringify(data)});
   alert('✅ Tenant added!');
+  await loadTenants();
   loadDashboard();
 }
 
@@ -1145,7 +1781,7 @@ async function addTenant() {
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 }
 
 function escHtml(str) {
