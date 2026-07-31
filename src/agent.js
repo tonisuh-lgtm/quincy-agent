@@ -278,4 +278,42 @@ async function generateOwnerSummary(tenant, conversationHistory, classification)
   return res.content[0].text.trim();
 }
 
-module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, getActiveLeaseData, checkEscalation, analyzeExternalMessage, getActiveLeaseSummary };
+// Given a lump sum, work out what it should be applied to based on what's actually owed
+async function allocatePayment(note, amount, ledger) {
+  const outstanding = Object.entries(ledger.byType)
+    .filter(([, v]) => v.balance > 0.009)
+    .map(([type, v]) => `${type}: $${v.balance.toFixed(2)} outstanding`)
+    .join('\n') || 'nothing currently outstanding';
+
+  const prompt = `A landlord received a single payment from a tenant and needs it split across categories for bookkeeping.
+
+AMOUNT RECEIVED: $${amount.toFixed(2)}
+${note ? `WHAT THE LANDLORD OR TENANT SAID ABOUT IT:\n"${note}"` : 'No note was provided.'}
+
+WHAT THIS TENANT CURRENTLY OWES:
+${outstanding}
+
+Rules:
+- The allocations must add up to exactly $${amount.toFixed(2)}.
+- If the note says what the money is for, follow it.
+- Otherwise apply it oldest-obligation-first: rent, then late_fee, then utilities, then other.
+- If the payment exceeds everything owed, put the excess in "credit".
+- Valid categories: rent, late_fee, utilities, deposit, other, credit.
+
+Respond with ONLY JSON, no markdown:
+{
+  "allocations": [{"type":"rent","amount":100.00,"reason":"short summary"}],
+  "explanation": "one sentence on how you split it",
+  "confidence": "high" | "medium" | "low"
+}`;
+
+  try {
+    const res = await client.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
+    return JSON.parse(res.content[0].text.trim().replace(/```json|```/g, '').trim());
+  } catch (e) {
+    console.error('Allocation error:', e.message);
+    return null;
+  }
+}
+
+module.exports = { classifyMessage, generateResponse, shouldEscalate, generateOwnerSummary, getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, getActiveLeaseData, checkEscalation, analyzeExternalMessage, allocatePayment };

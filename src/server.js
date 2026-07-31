@@ -8,7 +8,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 const db = require('./db');
 const { handleInboundSMS, sendRentReminder, checkOverdueRent, sendSMS, alertOwner, sendConfirmedPreview, previewToOwner, logMessage } = require('./twilio-handler');
-const { getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, analyzeExternalMessage } = require('./agent');
+const { getConfig, summarizeLease, extractUtilityTotal, answerUtilityQuestion, analyzeExternalMessage, allocatePayment } = require('./agent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -99,6 +99,8 @@ app.get('/api/dashboard', auth, (req, res) => {
     const paid = db.prepare(`SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE tenant_id = ? AND month = ? AND type = 'rent'`).get(t.id, currentMonth).total;
     const lastMsg = db.prepare(`SELECT * FROM conversations WHERE tenant_id = ? ORDER BY timestamp DESC LIMIT 1`).get(t.id);
     const hasLease = db.prepare(`SELECT COUNT(*) as count FROM lease_documents WHERE tenant_id = ? AND active = 1`).get(t.id).count > 0;
+    const led = buildLedger(t.id);
+    const fullBalance = led ? Math.max(0, led.balance) : Math.max(0, t.rent - paid);
     const balance = Math.max(0, t.rent - paid);
 
     // Rent clock: due the 1st, 5-day grace, 10% late fee after
@@ -129,7 +131,7 @@ app.get('/api/dashboard', auth, (req, res) => {
       }
     }
 
-    return { ...t, paid_this_month: paid, balance_due: balance, last_message: lastMsg, has_lease: hasLease, clock, leaseClock };
+    return { ...t, paid_this_month: paid, balance_due: balance, total_owed: fullBalance, owed_breakdown: led ? led.byType : {}, last_message: lastMsg, has_lease: hasLease, clock, leaseClock };
   });
   const unread = db.prepare(`SELECT COUNT(*) as count FROM conversations WHERE needs_review = 1 AND reviewed = 0`).get().count;
   const complaints = db.prepare(`SELECT COUNT(*) as count FROM conversations WHERE category = 'complaint' AND resolved = 0 AND direction = 'inbound'`).get().count;
@@ -279,6 +281,44 @@ app.post('/api/payments/split', auth, (req, res) => {
   });
 
   res.json({ ok: true, created, total: parseFloat(total.toFixed(2)) });
+});
+
+// Propose how a lump sum should be split, using the ledger as the source of truth
+app.post('/api/payments/allocate', auth, async (req, res) => {
+  const { tenant_id, amount, note } = req.body;
+  const amt = parseFloat(amount);
+  if (!tenant_id || !amt) return res.status(400).json({ error: 'Tenant and amount required' });
+  const ledger = buildLedger(tenant_id);
+  if (!ledger) return res.status(404).json({ error: 'Tenant not found' });
+
+  let proposal = await allocatePayment(note || '', amt, ledger);
+
+  // If the model is unavailable, fall back to plain oldest-first allocation
+  if (!proposal || !Array.isArray(proposal.allocations) || !proposal.allocations.length) {
+    const order = ['rent', 'late_fee', 'utilities', 'other'];
+    let left = amt;
+    const allocations = [];
+    order.forEach(type => {
+      const owed = ledger.byType[type] ? ledger.byType[type].balance : 0;
+      if (owed > 0.009 && left > 0.009) {
+        const take = Math.min(owed, left);
+        allocations.push({ type, amount: +take.toFixed(2), reason: `applied to outstanding ${type.replace('_',' ')}` });
+        left = +(left - take).toFixed(2);
+      }
+    });
+    if (left > 0.009) allocations.push({ type: 'credit', amount: left, reason: 'more than currently owed' });
+    proposal = { allocations, explanation: 'Applied to the oldest outstanding items first.', confidence: 'medium', fallback: true };
+  }
+
+  const total = proposal.allocations.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0);
+  res.json({
+    ok: true,
+    proposal,
+    total: +total.toFixed(2),
+    difference: +(amt - total).toFixed(2),
+    outstanding: ledger.byType,
+    currentBalance: ledger.balance,
+  });
 });
 
 app.patch('/api/payments/:id', auth, (req, res) => {
@@ -801,6 +841,102 @@ app.get('/api/log/export', auth, (req, res) => {
   res.set('Content-Type', 'text/plain');
   res.set('Content-Disposition', 'attachment; filename="message-log.txt"');
   res.send(out);
+});
+
+// ─── LEDGER ───────────────────────────────────────────────────
+// The complete picture: everything charged, everything paid, what's left
+function buildLedger(tenantId) {
+  const t = db.prepare('SELECT * FROM tenants WHERE id = ?').get(tenantId);
+  if (!t) return null;
+
+  const items = [];
+  const today = new Date();
+  const start = t.lease_start ? new Date(t.lease_start + 'T12:00:00') : today;
+
+  // Rent charged for every month the lease has been running
+  let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endCap = t.lease_end ? new Date(t.lease_end + 'T12:00:00') : today;
+  while (cur <= today && cur <= endCap) {
+    const key = cur.toISOString().slice(0, 7);
+    const isFirst = key === start.toISOString().slice(0, 7);
+    const amt = (isFirst && t.prorated_first) ? t.prorated_first : t.rent;
+    items.push({ kind: 'charge', type: 'rent', month: key, amount: amt, label: `Rent ${cur.toLocaleDateString('en-US',{month:'short',year:'numeric'})}${isFirst && t.prorated_first ? ' (prorated)' : ''}`, date: key + '-01' });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+
+  // Each utility bill charges this tenant their share
+  db.prepare('SELECT * FROM utility_bills ORDER BY timestamp').all().forEach(b => {
+    items.push({ kind: 'charge', type: 'utilities', month: (b.timestamp||'').slice(0,7), amount: b.tenant_share, label: `${b.type.charAt(0).toUpperCase()+b.type.slice(1)} ${b.period||''}`.trim(), date: (b.timestamp||'').slice(0,10) });
+  });
+
+  // Late fees and any other one-off charges
+  db.prepare('SELECT * FROM charges WHERE tenant_id = ? AND waived = 0 ORDER BY created_at').all(tenantId).forEach(c => {
+    items.push({ kind: 'charge', type: c.type, month: c.month, amount: c.amount, label: c.description || c.type, date: (c.created_at||'').slice(0,10) });
+  });
+
+  // Everything they've paid, whatever it was labelled
+  db.prepare('SELECT * FROM payments WHERE tenant_id = ? ORDER BY timestamp').all(tenantId).forEach(p => {
+    items.push({ kind: 'payment', type: p.type, month: p.month, amount: p.amount, label: p.note || `${p.type} payment`, date: (p.timestamp||'').slice(0,10), id: p.id });
+  });
+
+  items.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  const charged = items.filter(i=>i.kind==='charge').reduce((s,i)=>s+i.amount, 0);
+  const paid = items.filter(i=>i.kind==='payment').reduce((s,i)=>s+i.amount, 0);
+
+  const byType = {};
+  items.forEach(i => {
+    if (!byType[i.type]) byType[i.type] = { charged: 0, paid: 0 };
+    byType[i.type][i.kind === 'charge' ? 'charged' : 'paid'] += i.amount;
+  });
+  Object.values(byType).forEach(v => { v.charged = +v.charged.toFixed(2); v.paid = +v.paid.toFixed(2); v.balance = +(v.charged - v.paid).toFixed(2); });
+
+  return {
+    tenant: { id: t.id, name: t.name, short_name: t.short_name, rent: t.rent, payment_method: t.payment_method },
+    charged: +charged.toFixed(2),
+    paid: +paid.toFixed(2),
+    balance: +(charged - paid).toFixed(2),
+    byType,
+    items,
+  };
+}
+
+app.get('/api/ledger/:tenantId', auth, (req, res) => {
+  const l = buildLedger(req.params.tenantId);
+  if (!l) return res.status(404).json({ error: 'Tenant not found' });
+  res.json({ ok: true, ...l });
+});
+
+// ─── CHARGES ──────────────────────────────────────────────────
+app.get('/api/charges', auth, (req, res) => {
+  const { tenant_id } = req.query;
+  let sql = 'SELECT c.*, t.short_name FROM charges c LEFT JOIN tenants t ON c.tenant_id = t.id';
+  const params = [];
+  if (tenant_id) { sql += ' WHERE c.tenant_id = ?'; params.push(tenant_id); }
+  sql += ' ORDER BY c.id DESC';
+  res.json(db.prepare(sql).all(...params));
+});
+
+app.post('/api/charges', auth, (req, res) => {
+  const { tenant_id, amount, type, month, description } = req.body;
+  if (!tenant_id || !amount) return res.status(400).json({ error: 'Tenant and amount required' });
+  const r = db.prepare(`INSERT INTO charges (tenant_id, amount, type, month, description) VALUES (?, ?, ?, ?, ?)`).run(
+    tenant_id, parseFloat(amount), type || 'late_fee', month || new Date().toISOString().slice(0,7), description || ''
+  );
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+app.patch('/api/charges/:id', auth, (req, res) => {
+  const allowed = ['amount','type','month','description','waived'];
+  const u = Object.fromEntries(Object.entries(req.body).filter(([k])=>allowed.includes(k)));
+  if (!Object.keys(u).length) return res.json({ ok: true });
+  db.prepare(`UPDATE charges SET ${Object.keys(u).map(k=>`${k} = ?`).join(', ')} WHERE id = ?`).run(...Object.values(u), req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/charges/:id', auth, (req, res) => {
+  db.prepare('DELETE FROM charges WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 // ─── AI DRAFT ─────────────────────────────────────────────────
