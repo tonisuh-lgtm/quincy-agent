@@ -866,6 +866,7 @@ function buildLedger(tenantId) {
 
   // Each utility bill charges this tenant their share
   db.prepare('SELECT * FROM utility_bills ORDER BY timestamp').all().forEach(b => {
+    if ((b.notes || '').includes('[not charged]')) return;   // owner excluded this bill
     items.push({ kind: 'charge', type: 'utilities', month: (b.timestamp||'').slice(0,7), amount: b.tenant_share, label: `${b.type.charAt(0).toUpperCase()+b.type.slice(1)} ${b.period||''}`.trim(), date: (b.timestamp||'').slice(0,10) });
   });
 
@@ -891,12 +892,28 @@ function buildLedger(tenantId) {
   });
   Object.values(byType).forEach(v => { v.charged = +v.charged.toFixed(2); v.paid = +v.paid.toFixed(2); v.balance = +(v.charged - v.paid).toFixed(2); });
 
+  // Month-by-month is how a landlord actually thinks about it
+  const byMonth = {};
+  items.forEach(i => {
+    const m = i.month || (i.date||'').slice(0,7) || 'unknown';
+    if (!byMonth[m]) byMonth[m] = { charged: 0, paid: 0, items: [] };
+    byMonth[m][i.kind === 'charge' ? 'charged' : 'paid'] += i.amount;
+    byMonth[m].items.push(i);
+  });
+  Object.values(byMonth).forEach(v => {
+    v.charged = +v.charged.toFixed(2);
+    v.paid = +v.paid.toFixed(2);
+    v.balance = +(v.charged - v.paid).toFixed(2);
+    v.settled = Math.abs(v.balance) < 0.01;
+  });
+
   return {
     tenant: { id: t.id, name: t.name, short_name: t.short_name, rent: t.rent, payment_method: t.payment_method },
     charged: +charged.toFixed(2),
     paid: +paid.toFixed(2),
     balance: +(charged - paid).toFixed(2),
     byType,
+    byMonth,
     items,
   };
 }
@@ -905,6 +922,48 @@ app.get('/api/ledger/:tenantId', auth, (req, res) => {
   const l = buildLedger(req.params.tenantId);
   if (!l) return res.status(404).json({ error: 'Tenant not found' });
   res.json({ ok: true, ...l });
+});
+
+// Square the books when the app's picture doesn't match reality.
+// Writes a single adjusting entry rather than silently editing history.
+app.post('/api/ledger/:tenantId/settle', auth, (req, res) => {
+  const { throughMonth, note } = req.body;
+  const l = buildLedger(req.params.tenantId);
+  if (!l) return res.status(404).json({ error: 'Tenant not found' });
+
+  // Balance owed up to and including the chosen month
+  let bal = 0;
+  Object.entries(l.byMonth).forEach(([m, v]) => { if (!throughMonth || m <= throughMonth) bal += v.balance; });
+  bal = +bal.toFixed(2);
+  if (Math.abs(bal) < 0.01) return res.json({ ok: true, adjusted: 0, message: 'Already balanced, nothing to adjust.' });
+
+  const label = note || `Settled outside the app${throughMonth ? ` (through ${throughMonth})` : ''}`;
+  if (bal > 0) {
+    // They owe on paper but actually paid: record the payment
+    db.prepare(`INSERT INTO payments (tenant_id, amount, type, month, note, confirmed) VALUES (?, ?, 'other', ?, ?, 1)`).run(
+      req.params.tenantId, bal, throughMonth || new Date().toISOString().slice(0,7), label
+    );
+  } else {
+    // Overpaid on paper: record a balancing charge
+    db.prepare(`INSERT INTO charges (tenant_id, amount, type, month, description) VALUES (?, ?, 'adjustment', ?, ?)`).run(
+      req.params.tenantId, Math.abs(bal), throughMonth || new Date().toISOString().slice(0,7), label
+    );
+  }
+  res.json({ ok: true, adjusted: bal, message: `Adjusted by $${Math.abs(bal).toFixed(2)}. ${l.tenant.short_name} now shows settled through ${throughMonth || 'today'}.` });
+});
+
+// Stop a specific utility bill from being charged to tenants
+app.post('/api/utilities/:id/exclude', auth, (req, res) => {
+  const b = db.prepare('SELECT * FROM utility_bills WHERE id = ?').get(req.params.id);
+  if (!b) return res.status(404).json({ error: 'Not found' });
+  const TAG = '[not charged]';
+  const cur = b.notes || '';
+  const excluded = cur.includes(TAG);
+  const notes = excluded
+    ? cur.split(TAG).join('').replace(/\s+/g, ' ').trim()
+    : (cur + ' ' + TAG).replace(/\s+/g, ' ').trim();
+  db.prepare('UPDATE utility_bills SET notes = ? WHERE id = ?').run(notes, req.params.id);
+  res.json({ ok: true, excluded: !excluded });
 });
 
 // ─── CHARGES ──────────────────────────────────────────────────
