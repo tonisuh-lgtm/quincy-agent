@@ -318,6 +318,8 @@
         <div class="input-group">
           <div><label class="field-label">Tenant</label><select id="sm-tenant" onchange="loadOwedSummary()"></select></div>
           <div><label class="field-label">Amount received ($)</label><input type="number" id="sm-amount" placeholder="212.00" /></div>
+          <div><label class="field-label">Which month is this for?</label><input type="month" id="sm-month" /></div>
+          <div><label class="field-label">Paid via</label><input id="sm-method" placeholder="e.g. Apple Pay" /></div>
         </div>
         <label class="field-label">What was it for? (optional)</label>
         <textarea id="sm-note" rows="2" placeholder="e.g. rent shortfall, late fee and July utilities — or paste what they texted you" style="min-height:55px;margin-bottom:8px;"></textarea>
@@ -980,44 +982,78 @@ async function toggleConfirmation(currentlyOn) {
   toast(currentlyOn?'Confirmation turned OFF':'Confirmation required — nothing sends without you');
 }
 
-// Full running account for one tenant: every charge, every payment
+// Full running account for one tenant, organised by month
 async function openLedger(tenantId) {
   const l = await api('/api/ledger/'+tenantId);
   if (!l || !l.ok) return toast('Could not load ledger','err');
+  currentLedgerTenant = tenantId;
 
-  const rows = l.items.map(i=>`
-    <div class="row between" style="padding:5px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
-      <div style="flex:1;">
-        <span style="color:${i.kind==='charge'?'var(--text)':'#97C459'};">${i.kind==='charge'?'▸':'✓'} ${escHtml(i.label)}</span>
-        <span class="muted"> · ${i.date||''}</span>
+  const months = Object.entries(l.byMonth).sort((a,b)=>b[0].localeCompare(a[0]));
+  const monthLabel = m => m==='unknown' ? 'Undated' : new Date(m+'-02').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  const monthBlocks = months.map(([m,v])=>`
+    <div style="margin-bottom:14px;">
+      <div class="row between" style="margin-bottom:5px;">
+        <span style="font-weight:500;font-size:13px;">${monthLabel(m)}</span>
+        <span style="font-size:12px;color:${v.settled?'#97C459':v.balance>0?'var(--amber)':'#97C459'};">
+          ${v.settled?'Settled ✓':v.balance>0?'$'+v.balance.toFixed(2)+' owed':'$'+Math.abs(v.balance).toFixed(2)+' credit'}
+        </span>
       </div>
-      <span style="color:${i.kind==='charge'?'var(--amber)':'#97C459'};white-space:nowrap;">${i.kind==='charge'?'+':'−'}$${i.amount.toFixed(2)}</span>
+      ${v.items.map(i=>`
+        <div class="row between" style="padding:4px 0;border-bottom:0.5px solid var(--border);font-size:12px;">
+          <span style="flex:1;color:${i.kind==='charge'?'var(--text)':'#97C459'};">
+            ${i.kind==='charge'?'▸':'✓'} ${escHtml(i.label)}
+          </span>
+          <span style="color:${i.kind==='charge'?'var(--amber)':'#97C459'};white-space:nowrap;">
+            ${i.kind==='charge'?'+':'−'}$${i.amount.toFixed(2)}
+          </span>
+        </div>`).join('')}
+      <div class="row between" style="padding:4px 0;font-size:11px;">
+        <span class="muted">charged $${v.charged.toFixed(2)} · paid $${v.paid.toFixed(2)}</span>
+      </div>
     </div>`).join('');
 
-  const byType = Object.entries(l.byType).map(([k,v])=>`
-    <div class="share-row"><span class="muted">${k.replace(/_/g,' ')}</span><span>charged $${v.charged.toFixed(2)} · paid $${v.paid.toFixed(2)} · <strong style="color:${v.balance>0.009?'var(--amber)':'#97C459'};">$${v.balance.toFixed(2)}</strong></span></div>`).join('');
-
   document.getElementById('ledger-modal').innerHTML = `
-    <div class="card" style="max-width:640px;margin:0 auto;">
+    <div class="card">
       <div class="row between" style="margin-bottom:10px;">
         <div>
-          <div style="font-weight:500;">${escHtml(l.tenant.name)} — full ledger</div>
-          <div class="muted">Everything charged and everything paid, since move-in</div>
+          <div style="font-weight:500;">${escHtml(l.tenant.name)}</div>
+          <div class="muted">Everything charged and paid, month by month</div>
         </div>
         <button onclick="closeLedger()" style="font-size:11px;">Close</button>
       </div>
-      <div class="share-box" style="margin-bottom:10px;">
+
+      <div class="share-box" style="margin-bottom:12px;">
         <div class="share-row"><span>Total charged</span><span>$${l.charged.toFixed(2)}</span></div>
         <div class="share-row"><span>Total paid</span><span style="color:#97C459;">$${l.paid.toFixed(2)}</span></div>
-        <div class="share-row"><span>Balance</span><span style="color:${l.balance>0.009?'var(--amber)':'#97C459'};">$${l.balance.toFixed(2)}</span></div>
+        <div class="share-row"><span>Balance</span><span style="color:${l.balance>0.009?'var(--amber)':'#97C459'};">${l.balance>0.009?'$'+l.balance.toFixed(2)+' owed':l.balance<-0.009?'$'+Math.abs(l.balance).toFixed(2)+' credit':'Settled ✓'}</span></div>
       </div>
-      <div class="section-title">By category</div>
-      <div class="share-box" style="margin-bottom:10px;">${byType||'<div class="muted">Nothing yet</div>'}</div>
-      <div class="section-title">Every line</div>
-      <div style="max-height:320px;overflow-y:auto;">${rows||'<div class="muted">Nothing yet</div>'}</div>
+
+      ${Math.abs(l.balance) > 0.009 ? `
+      <div class="info-box" style="margin-bottom:12px;">
+        <strong style="color:var(--text);">Number look wrong?</strong> If they actually settled up and it was handled outside the app, mark it settled and a single adjusting entry squares the books without erasing history.
+        <div class="row" style="gap:6px;margin-top:8px;">
+          <input type="month" id="settle-month" value="${months.length?months[0][0]:''}" style="flex:1;" />
+          <button onclick="settleLedger()" style="font-size:11px;white-space:nowrap;">Mark settled through</button>
+        </div>
+      </div>` : ''}
+
+      <div class="section-title">Month by month</div>
+      <div style="max-height:400px;overflow-y:auto;">${monthBlocks||'<div class="muted">Nothing yet</div>'}</div>
     </div>`;
   document.getElementById('ledger-modal').style.display='block';
   window.scrollTo({top:0, behavior:'smooth'});
+}
+
+let currentLedgerTenant = null;
+
+async function settleLedger() {
+  const throughMonth = document.getElementById('settle-month').value;
+  if (!confirm(`Mark everything through ${throughMonth} as settled?\n\nThis writes one adjusting entry to square the balance. Nothing already logged is deleted.`)) return;
+  const r = await api(`/api/ledger/${currentLedgerTenant}/settle`,{method:'POST',body:JSON.stringify({throughMonth})});
+  toast(r.message || 'Adjusted');
+  openLedger(currentLedgerTenant);
+  loadDashboard();
 }
 
 function closeLedger() {
@@ -1228,6 +1264,7 @@ function togglePaymentForm() {
     document.getElementById('pf-month').value = m;
     document.getElementById('sp-month').value = m;
     prefillSplit();
+    const sm=document.getElementById('sm-month'); if(sm && !sm.value) sm.value=m;
     setPayMode('smart');
   }
 }
@@ -1296,10 +1333,6 @@ async function proposeAllocation() {
       ${a.reason?`<div class="muted" style="margin:-2px 0 8px 2px;font-size:11px;">${escHtml(a.reason)}</div>`:''}`).join('')}
     </div>
     <div id="sm-total" class="share-box" style="margin-bottom:10px;"></div>
-    <div class="input-group" style="margin-bottom:8px;">
-      <div><label class="field-label">Apply to month</label><input type="month" id="sm-month" value="${new Date().toISOString().slice(0,7)}" /></div>
-      <div><label class="field-label">Payment method note</label><input id="sm-method" placeholder="e.g. Apple Pay" /></div>
-    </div>
     <div class="row" style="gap:8px;">
       <button class="btn-primary" onclick="saveAllocation()" style="font-size:12px;">Save these entries</button>
       <button onclick="document.getElementById('sm-result').style.display='none'" style="font-size:12px;">Cancel</button>
@@ -1667,6 +1700,12 @@ async function notifyAllUtil(period) {
   }
 }
 
+async function toggleExclude(id) {
+  const r = await api(`/api/utilities/${id}/exclude`,{method:'POST'});
+  toast(r.excluded ? 'This bill will not be charged to tenants' : 'This bill is charged to tenants again');
+  loadUtilities(); loadDashboard();
+}
+
 async function deleteUtil(id) {
   if (!confirm('Delete this utility bill?')) return;
   await api(`/api/utilities/${id}`,{method:'DELETE'});
@@ -1766,6 +1805,7 @@ async function loadUtilities() {
       <div style="text-align:right;">
         <div class="muted" style="font-size:10px;">${fmtTime(b.timestamp)}</div>
         <div style="font-size:11px;margin-top:3px;">${b.notified?'<span style="color:var(--green);">✓ notified</span>':`<button onclick="notifyUtil(${b.id})" style="font-size:10px;">Notify</button>`}</div>
+        <button onclick="toggleExclude(${b.id})" style="font-size:10px;margin-top:2px;">${(b.notes||'').includes('[not charged]')?'Charge tenants':'Don\'t charge'}</button>
         <button onclick="deleteUtil(${b.id})" style="font-size:10px;color:var(--text3);border:none;padding:2px 4px;margin-top:2px;">✕ delete</button>
       </div>
     </div>
