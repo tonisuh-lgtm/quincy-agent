@@ -29,7 +29,7 @@
   .btn-primary:hover{opacity:0.9;color:#0f0f0f;}
   .btn-danger{border-color:var(--red);color:var(--red);}
   .btn-success{border-color:var(--green);color:#97C459;}
-  .nav{border-bottom:0.5px solid var(--border);display:flex;gap:2px;padding:12px 0 0;position:sticky;top:0;background:var(--bg);z-index:10;overflow-x:auto;}
+  .nav{border-bottom:0.5px solid var(--border);display:flex;flex-wrap:wrap;gap:2px;padding:12px 0 0;position:sticky;top:0;background:var(--bg);z-index:10;}
   .nav-btn{border-radius:8px 8px 0 0;border-bottom:2px solid transparent;color:var(--text2);display:flex;align-items:center;gap:5px;padding:7px 11px;white-space:nowrap;font-size:12px;}
   .nav-btn.active{border-bottom-color:var(--gold);color:var(--text);}
   .badge{background:var(--red);border-radius:10px;color:white;font-size:10px;min-width:16px;padding:1px 5px;text-align:center;}
@@ -333,7 +333,7 @@
 
       <div id="pay-single" style="display:none;">
         <div class="input-group">
-          <div><label class="field-label">Tenant</label><select id="pf-tenant"></select></div>
+          <div><label class="field-label">Tenant</label><select id="pf-tenant" onchange="onSingleTenantChange()"></select></div>
           <div><label class="field-label">Type</label>
             <select id="pf-type">
               <option value="rent">Rent</option>
@@ -356,7 +356,7 @@
       <div id="pay-split" style="display:none;">
         <p class="muted" style="margin-bottom:10px;">They sent one amount covering several things. Enter the total, then allocate it. Each category is logged as its own entry so the rent balance stays accurate.</p>
         <div class="input-group">
-          <div><label class="field-label">Tenant</label><select id="sp-tenant" onchange="prefillSplit()"></select></div>
+          <div><label class="field-label">Tenant</label><select id="sp-tenant" onchange="onSplitTenantChange()"></select></div>
           <div><label class="field-label">Month</label><input type="month" id="sp-month" onchange="prefillSplit()" /></div>
           <div><label class="field-label">Total received ($)</label><input type="number" id="sp-total" placeholder="0.00" oninput="updateSplitRemainder()" /></div>
           <div><label class="field-label">Note</label><input id="sp-note" placeholder="e.g. Apple Pay" /></div>
@@ -1256,6 +1256,17 @@ async function resolveComplaint(id) {
 }
 
 // ── PAYMENTS ──────────────────────────────────────
+// Find the earliest month (up through the current one) that still has a balance,
+// so payment forms default to what's actually owed instead of blindly today's month.
+function oldestUnsettledMonth(ledger) {
+  if (!ledger || !ledger.byMonth) return null;
+  const currentMonth = new Date().toISOString().slice(0,7);
+  const months = Object.entries(ledger.byMonth)
+    .filter(([m,v]) => m !== 'unknown' && m <= currentMonth && Math.abs(v.balance) > 0.009)
+    .sort((a,b) => a[0].localeCompare(b[0]));
+  return months.length ? months[0][0] : null;
+}
+
 function togglePaymentForm() {
   const f = document.getElementById('payment-form');
   f.style.display = f.style.display==='none'?'block':'none';
@@ -1288,6 +1299,11 @@ async function loadOwedSummary() {
   const l = await api('/api/ledger/'+tid);
   if (!l || !l.ok) { box.innerHTML=''; return; }
   smartLedger = l;
+
+  // Default the month to the oldest one still owing, not just today's month
+  const oldest = oldestUnsettledMonth(l);
+  const monthInput = document.getElementById('sm-month');
+  if (oldest && monthInput) monthInput.value = oldest;
 
   const rows = Object.entries(l.byType).filter(([,v])=>Math.abs(v.balance) > 0.009);
   if (!rows.length) {
@@ -1400,6 +1416,19 @@ async function getOwed(tenantId, month) {
   return { rentOwed: Math.max(0, tenant.rent - paidRent), rent: tenant.rent, paidRent };
 }
 
+async function onSplitTenantChange() {
+  const tid = document.getElementById('sp-tenant').value;
+  const monthInput = document.getElementById('sp-month');
+  if (tid && monthInput) {
+    const l = await api('/api/ledger/'+tid);
+    if (l && l.ok) {
+      const oldest = oldestUnsettledMonth(l);
+      if (oldest) monthInput.value = oldest;
+    }
+  }
+  prefillSplit();
+}
+
 async function prefillSplit() {
   const tid = document.getElementById('sp-tenant').value;
   const month = document.getElementById('sp-month').value;
@@ -1474,6 +1503,16 @@ async function saveSplitPayment() {
   togglePaymentForm();
   loadPayments(); loadDashboard();
   toast(`Logged ${allocations.length} entries totalling $${allocated.toFixed(2)}`);
+}
+
+async function onSingleTenantChange() {
+  const tid = document.getElementById('pf-tenant').value;
+  const monthInput = document.getElementById('pf-month');
+  if (!tid || !monthInput) return;
+  const l = await api('/api/ledger/'+tid);
+  if (!l || !l.ok) return;
+  const oldest = oldestUnsettledMonth(l);
+  if (oldest) monthInput.value = oldest;
 }
 
 async function savePayment() {
